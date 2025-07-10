@@ -1,0 +1,39 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 20px;
+    background-color: #f4f4f2;
+    color: #333;
+}
+h1, h2 {
+    color: #4e342e;
+}
+.form-container {
+    display: flex;
+    flex-direction: column;
+    max-width: 400px;
+}
+.form-container input, .form-container button {
+    margin: 5px 0;
+    padding: 10px;
+}
+.error {
+    color: red;
+}
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+table, th, td {
+    border: 1px solid #aaa;
+}
+th, td {
+    padding: 8px;
+    text-align: left;
+}
+.nav-links a {
+    margin-right: 15px;
+}
+.analytics-summary p {
+    font-size: 1.2em;
+}

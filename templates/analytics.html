@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Analytics - Loyalty Card App</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <h1>Analytics Overview</h1>
+    <div class="analytics-summary">
+        <p><strong>Total Orders:</strong> {{ summary.total_orders }}</p>
+        <p><strong>Total Tokens:</strong> {{ summary.total_tokens }}</p>
+        <p><strong>Total Redemptions:</strong> {{ summary.total_redeemed }}</p>
+    </div>
+    <h2>Top 5 Drinks</h2>
+    <canvas id="topDrinksChart"></canvas>
+    <script>
+        const chartData = {
+            labels: {{ summary.top_drinks.keys()|list|tojson }},
+            datasets: [{
+                label: 'Top Drinks',
+                data: {{ summary.top_drinks.values()|list|tojson }},
+                backgroundColor: 'rgba(153, 102, 255, 0.6)'
+            }]
+        };
+        const config = {
+            type: 'bar',
+            data: chartData,
+            options: {
+                responsive: true,
+                scales: { y: { beginAtZero: true } }
+            }
+        };
+        new Chart(document.getElementById('topDrinksChart'), config);
+    </script>
+    <br><a href="/">← Back to Home</a>
+</body>
+</html>

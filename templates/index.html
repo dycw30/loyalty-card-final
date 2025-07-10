@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Loyalty Card App</title>
+</head>
+<body>
+    <h1>Loyalty Card - Record Coffee Order</h1>
+    <form method="post">
+        <label>Customer Name:</label><br>
+        <input type="text" name="name" required><br>
+        <label>Drink Type:</label><br>
+        <input type="text" name="drink" required><br>
+        <label>Tokens Earned:</label><br>
+        <input type="number" name="tokens" required><br>
+        <label>Redeemed?</label>
+        <input type="checkbox" name="redeemed"><br><br>
+        <button type="submit">Submit Order</button>
+    </form>
+    <br>
+    <a href="/export">Export to Excel</a> |
+    <a href="/logout">Logout</a>
+
+    <h2>Order History</h2>
+    <table border="1">
+        <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Drink</th>
+            <th>Tokens</th>
+            <th>Redeemed</th>
+            <th>Date</th>
+        </tr>
+        {% for order in orders %}
+        <tr>
+            <td>{{ order[0] }}</td>
+            <td>{{ order[1] }}</td>
+            <td>{{ order[2] }}</td>
+            <td>{{ order[3] }}</td>
+            <td>{{ 'Yes' if order[4] else 'No' }}</td>
+            <td>{{ order[5] }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+</body>
+</html>
