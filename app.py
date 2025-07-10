@@ -81,7 +81,7 @@ def export():
     df["Today's Order"] = 1
     df["Redeemed"] = df["redeemed"].apply(lambda x: 1 if x else 0)
 
-    template_file = "Bound Cafe Test 3.xlsm"
+    template_file = "Bound CRM Test 3.xlsm"
     wb = load_workbook(template_file, keep_vba=True)
     ws = wb["Sheet1"]
 
