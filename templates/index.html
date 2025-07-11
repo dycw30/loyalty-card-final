@@ -2,44 +2,40 @@
 <html>
 <head>
     <title>Loyalty Card App</title>
+    <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
-    <h1>Loyalty Card - Record Coffee Order</h1>
-    <form method="post">
-        <label>Customer Name:</label><br>
-        <input type="text" name="name" required><br>
+    <h1>Cafe Loyalty Card</h1>
+
+    <form method="post" class="form-container">
+        <label>Unique ID:</label><br>
+        <input type="text" name="unique_id" required><br>
+
+        <label>Quantity Ordered:</label><br>
+        <input type="number" name="quantity" min="1" value="1" required><br>
+
         <label>Drink Type:</label><br>
         <input type="text" name="drink" required><br>
-        <label>Tokens Earned:</label><br>
-        <input type="number" name="tokens" required><br>
-        <label>Redeemed?</label>
-        <input type="checkbox" name="redeemed"><br><br>
-        <button type="submit">Submit Order</button>
-    </form>
-    <br>
-    <a href="/export">Export to Excel</a> |
-    <a href="/logout">Logout</a>
 
-    <h2>Order History</h2>
-    <table border="1">
-        <tr>
-            <th>ID</th>
-            <th>Name</th>
-            <th>Drink</th>
-            <th>Tokens</th>
-            <th>Redeemed</th>
-            <th>Date</th>
-        </tr>
-        {% for order in orders %}
-        <tr>
-            <td>{{ order[0] }}</td>
-            <td>{{ order[1] }}</td>
-            <td>{{ order[2] }}</td>
-            <td>{{ order[3] }}</td>
-            <td>{{ 'Yes' if order[4] else 'No' }}</td>
-            <td>{{ order[5] }}</td>
-        </tr>
-        {% endfor %}
-    </table>
+        <label>Quantity To Redeem (optional):</label><br>
+        <input type="number" name="redeem" min="0"><br><br>
+
+        <button type="submit">Record Order</button>
+    </form>
+
+    {% if totals %}
+    <div style="margin-top: 20px; padding: 10px; border: 1px solid #aaa; background-color: #fafafa;">
+        <h3>Stats for Unique ID: {{ totals.unique_id }}</h3>
+        <p>Total Orders: {{ totals.total_orders }}</p>
+        <p>Total Tokens Earned: {{ totals.total_tokens }}</p>
+        <p>Total Redeemed: {{ totals.total_redeemed }}</p>
+        <p>Balance Tokens: {{ totals.balance_tokens }}</p>
+    </div>
+    {% endif %}
+
+    <div class="nav-links">
+        <a href="/export">Export Data</a> |
+        <a href="/logout">Logout</a>
+    </div>
 </body>
 </html>

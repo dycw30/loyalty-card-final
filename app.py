@@ -15,8 +15,9 @@ def init_db():
     c.execute("""
         CREATE TABLE IF NOT EXISTS orders (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            customer_name TEXT,
+            unique_id TEXT,
             drink_type TEXT,
+            quantity INTEGER,
             tokens INTEGER,
             redeemed INTEGER,
             date TEXT
@@ -47,27 +48,41 @@ def index():
     if not session.get("logged_in"):
         return redirect(url_for("login"))
 
+    totals = None
     if request.method == "POST":
-        name = request.form["name"]
+        unique_id = request.form["unique_id"]
         drink = request.form["drink"]
-        tokens = int(request.form["tokens"])
-        redeemed = 1 if "redeemed" in request.form else 0
+        quantity = int(request.form["quantity"])
+        tokens_per_order = 1
+        tokens = quantity * tokens_per_order
+        redeemed = int(request.form["redeem"]) if request.form.get("redeem") else 0
         date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         conn = sqlite3.connect(DB_NAME)
         c = conn.cursor()
-        c.execute("INSERT INTO orders (customer_name, drink_type, tokens, redeemed, date) VALUES (?, ?, ?, ?, ?)",
-                  (name, drink, tokens, redeemed, date))
+        c.execute("INSERT INTO orders (unique_id, drink_type, quantity, tokens, redeemed, date) VALUES (?, ?, ?, ?, ?, ?)",
+                  (unique_id, drink, quantity, tokens, redeemed, date))
         conn.commit()
+
+        # Fetch totals for this Unique ID
+        c.execute("SELECT SUM(quantity), SUM(tokens), SUM(redeemed) FROM orders WHERE unique_id = ?", (unique_id,))
+        result = c.fetchone()
+        totals = {
+            "unique_id": unique_id,
+            "total_orders": result[0] or 0,
+            "total_tokens": result[1] or 0,
+            "total_redeemed": result[2] or 0,
+            "balance_tokens": (result[1] or 0) - (result[2] or 0)
+        }
         conn.close()
-        return redirect("/")
+        return render_template("index.html", orders=[], totals=totals)
 
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     c.execute("SELECT * FROM orders ORDER BY date DESC")
     orders = c.fetchall()
     conn.close()
-    return render_template("index.html", orders=orders)
+    return render_template("index.html", orders=orders, totals=totals)
 
 @app.route("/export")
 def export():
@@ -78,8 +93,8 @@ def export():
     df = pd.read_sql_query("SELECT * FROM orders", conn)
     conn.close()
 
-    df["Today's Order"] = 1
-    df["Redeemed"] = df["redeemed"].apply(lambda x: 1 if x else 0)
+    if df.empty:
+        return "No data to export"
 
     template_file = "Bound CRM Test 3.xlsm"
     wb = load_workbook(template_file, keep_vba=True)
@@ -87,13 +102,13 @@ def export():
 
     start_row = 2
     for i, row in df.iterrows():
-        ws.cell(row=start_row + i, column=1, value=row["customer_name"])
-        # B left for manual Unique ID
-        ws.cell(row=start_row + i, column=3, value=1)
-        ws.cell(row=start_row + i, column=4, value=row["drink_type"])
-        # E left for your Excel formula
-        ws.cell(row=start_row + i, column=6, value=row["tokens"])
-        ws.cell(row=start_row + i, column=7, value=f"{row['Redeemed']} / {row['tokens']}")
+        ws.cell(row=start_row + i, column=1, value=row["unique_id"])   # A
+        # B left for manual Unique ID if needed
+        ws.cell(row=start_row + i, column=3, value=row["quantity"])    # C Today's Order
+        ws.cell(row=start_row + i, column=4, value=row["drink_type"])  # D
+        # E left for your Excel formula (total orders)
+        ws.cell(row=start_row + i, column=6, value=row["tokens"])      # F Tokens
+        ws.cell(row=start_row + i, column=7, value=f"{row['redeemed']} / {row['tokens']}")  # G
 
     export_file = "Bound Cafe Exported.xlsm"
     wb.save(export_file)
