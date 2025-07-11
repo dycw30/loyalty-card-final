@@ -3,7 +3,7 @@ import sqlite3
 from datetime import datetime
 import os
 import pandas as pd
-from openpyxl import Workbook
+from openpyxl import load_workbook
 
 app = Flask(__name__)
 app.secret_key = 'supersecretkey'
@@ -56,13 +56,11 @@ def index():
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
 
-    # Handle new order
     if request.method == "POST":
         unique_id = request.form["unique_id"]
         drink = request.form["drink"]
         quantity = int(request.form["quantity"])
-        tokens_per_order = 1
-        tokens = quantity * tokens_per_order
+        tokens = quantity // 9
         redeemed = int(request.form["redeem"]) if request.form.get("redeem") else 0
         date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -71,31 +69,33 @@ def index():
         conn.commit()
 
     # Dashboard summary
-    c.execute("SELECT COUNT(DISTINCT unique_id), SUM(tokens), SUM(redeemed) FROM orders")
+    c.execute("SELECT COUNT(DISTINCT unique_id), SUM(quantity), SUM(redeemed) FROM orders")
     result = c.fetchone()
+    total_orders = result[1] or 0
+    total_tokens = total_orders // 9
     summary = {
         "total_customers": result[0] or 0,
-        "total_tokens": result[1] or 0,
+        "total_tokens": total_tokens,
         "total_redeemed": result[2] or 0,
-        "balance_tokens": (result[1] or 0) - (result[2] or 0)
+        "balance_tokens": total_tokens - (result[2] or 0)
     }
 
     # Top Unique IDs
     c.execute("""
-        SELECT unique_id, SUM(tokens) as total_tokens
+        SELECT unique_id, SUM(quantity) / 9 as tokens
         FROM orders
         GROUP BY unique_id
-        ORDER BY total_tokens DESC
+        ORDER BY tokens DESC
         LIMIT 5
     """)
-    top_customers = c.fetchall()
+    top_customers = [(row[0], int(row[1])) for row in c.fetchall()]
 
     # Top Drinks
     c.execute("""
-        SELECT drink_type, SUM(quantity) as total_qty
+        SELECT drink_type, SUM(quantity)
         FROM orders
         GROUP BY drink_type
-        ORDER BY total_qty DESC
+        ORDER BY SUM(quantity) DESC
         LIMIT 5
     """)
     top_drinks = c.fetchall()
@@ -110,25 +110,27 @@ def export():
         return redirect(url_for("login"))
 
     conn = sqlite3.connect(DB_NAME)
-    df = pd.read_sql_query("""
-        SELECT unique_id,
-               SUM(quantity) as total_orders,
-               SUM(tokens) as total_tokens,
-               SUM(redeemed) as total_redeemed,
-               (SUM(tokens) - SUM(redeemed)) as balance
-        FROM orders
-        GROUP BY unique_id
-    """, conn)
+    df = pd.read_sql_query("SELECT * FROM orders ORDER BY date", conn)
     conn.close()
 
     if df.empty:
         return "No data to export"
 
-    # Write to Excel
-    output_file = "Cafe Loyalty Aggregated.xlsx"
-    with pd.ExcelWriter(output_file, engine='openpyxl') as writer:
-        df.to_excel(writer, sheet_name="Summary", index=False)
+    # Write into Bound CRM Test 3.xlsm template
+    template_file = "Bound CRM Test 3.xlsm"
+    wb = load_workbook(template_file, keep_vba=True)
+    ws = wb["Sheet1"]
 
+    start_row = 2
+    for i, row in df.iterrows():
+        ws.cell(row=start_row + i, column=1, value=row["unique_id"])   # A
+        # B left for your manual Unique ID / CRM
+        ws.cell(row=start_row + i, column=3, value=row["quantity"])    # C Today's Order
+        ws.cell(row=start_row + i, column=4, value=row["drink_type"])  # D
+        # Columns E, F (Tokens), G left to be calculated by your Excel formulas
+
+    output_file = "Bound Cafe Exported.xlsm"
+    wb.save(output_file)
     return send_file(output_file, as_attachment=True)
 
 if __name__ == "__main__":
