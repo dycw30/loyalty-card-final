@@ -48,7 +48,6 @@ def index():
     if not session.get("logged_in"):
         return redirect(url_for("login"))
 
-    totals = None
     summary = {}
     top_customers = []
     top_drinks = []
@@ -110,26 +109,33 @@ def export():
         return redirect(url_for("login"))
 
     conn = sqlite3.connect(DB_NAME)
-    df = pd.read_sql_query("SELECT * FROM orders ORDER BY date", conn)
+    df = pd.read_sql_query("""
+        SELECT unique_id,
+               SUM(quantity) AS total_orders,
+               SUM(quantity) / 9 AS total_tokens,
+               SUM(redeemed) AS total_redeemed,
+               (SUM(quantity) / 9) - SUM(redeemed) AS balance
+        FROM orders
+        GROUP BY unique_id
+    """, conn)
     conn.close()
 
     if df.empty:
         return "No data to export"
 
-    # Write into Bound CRM Test 3.xlsm template
+    # Write aggregated data into Bound CRM file
     template_file = "Bound CRM Test 3.xlsm"
     wb = load_workbook(template_file, keep_vba=True)
     ws = wb["Sheet1"]
 
     start_row = 2
     for i, row in df.iterrows():
-        ws.cell(row=start_row + i, column=1, value=row["unique_id"])   # A
-        # B left for your manual Unique ID / CRM
-        ws.cell(row=start_row + i, column=3, value=row["quantity"])    # C Today's Order
-        ws.cell(row=start_row + i, column=4, value=row["drink_type"])  # D
-        # Columns E, F (Tokens), G left to be calculated by your Excel formulas
+        ws.cell(row=start_row + i, column=1, value=row["unique_id"])         # A
+        # B left blank
+        ws.cell(row=start_row + i, column=3, value=int(row["total_orders"])) # C
+        # D, E, F will be calculated by Excel formulas
 
-    output_file = "Bound Cafe Exported.xlsm"
+    output_file = "Bound Cafe Aggregated Export.xlsm"
     wb.save(output_file)
     return send_file(output_file, as_attachment=True)
 
