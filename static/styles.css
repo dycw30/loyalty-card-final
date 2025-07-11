@@ -1,39 +1,28 @@
-body {
-    font-family: Arial, sans-serif;
-    margin: 20px;
-    background-color: #f4f4f2;
-    color: #333;
+.card {
+    background: #fff8f0;
+    padding: 15px 20px;
+    margin: 10px;
+    border-radius: 8px;
+    text-align: center;
+    box-shadow: 2px 2px 5px #ccc;
+    font-size: 18px;
 }
-h1, h2 {
-    color: #4e342e;
-}
-.form-container {
-    display: flex;
-    flex-direction: column;
-    max-width: 400px;
-}
-.form-container input, .form-container button {
-    margin: 5px 0;
-    padding: 10px;
-}
-.error {
-    color: red;
+.card span {
+    display: block;
+    font-size: 28px;
+    font-weight: bold;
+    margin-top: 5px;
 }
 table {
     width: 100%;
     border-collapse: collapse;
-    margin-top: 20px;
+    margin-top: 10px;
 }
-table, th, td {
-    border: 1px solid #aaa;
-}
-th, td {
+table th, table td {
+    border: 1px solid #d4b8a2;
     padding: 8px;
     text-align: left;
 }
-.nav-links a {
-    margin-right: 15px;
-}
-.analytics-summary p {
-    font-size: 1.2em;
+table th {
+    background: #f0e6da;
 }

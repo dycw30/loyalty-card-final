@@ -3,7 +3,7 @@ import sqlite3
 from datetime import datetime
 import os
 import pandas as pd
-from openpyxl import load_workbook
+from openpyxl import Workbook
 
 app = Flask(__name__)
 app.secret_key = 'supersecretkey'
@@ -49,6 +49,14 @@ def index():
         return redirect(url_for("login"))
 
     totals = None
+    summary = {}
+    top_customers = []
+    top_drinks = []
+
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+
+    # Handle new order
     if request.method == "POST":
         unique_id = request.form["unique_id"]
         drink = request.form["drink"]
@@ -58,31 +66,43 @@ def index():
         redeemed = int(request.form["redeem"]) if request.form.get("redeem") else 0
         date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        conn = sqlite3.connect(DB_NAME)
-        c = conn.cursor()
         c.execute("INSERT INTO orders (unique_id, drink_type, quantity, tokens, redeemed, date) VALUES (?, ?, ?, ?, ?, ?)",
                   (unique_id, drink, quantity, tokens, redeemed, date))
         conn.commit()
 
-        # Fetch totals for this Unique ID
-        c.execute("SELECT SUM(quantity), SUM(tokens), SUM(redeemed) FROM orders WHERE unique_id = ?", (unique_id,))
-        result = c.fetchone()
-        totals = {
-            "unique_id": unique_id,
-            "total_orders": result[0] or 0,
-            "total_tokens": result[1] or 0,
-            "total_redeemed": result[2] or 0,
-            "balance_tokens": (result[1] or 0) - (result[2] or 0)
-        }
-        conn.close()
-        return render_template("index.html", orders=[], totals=totals)
+    # Dashboard summary
+    c.execute("SELECT COUNT(DISTINCT unique_id), SUM(tokens), SUM(redeemed) FROM orders")
+    result = c.fetchone()
+    summary = {
+        "total_customers": result[0] or 0,
+        "total_tokens": result[1] or 0,
+        "total_redeemed": result[2] or 0,
+        "balance_tokens": (result[1] or 0) - (result[2] or 0)
+    }
 
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute("SELECT * FROM orders ORDER BY date DESC")
-    orders = c.fetchall()
+    # Top Unique IDs
+    c.execute("""
+        SELECT unique_id, SUM(tokens) as total_tokens
+        FROM orders
+        GROUP BY unique_id
+        ORDER BY total_tokens DESC
+        LIMIT 5
+    """)
+    top_customers = c.fetchall()
+
+    # Top Drinks
+    c.execute("""
+        SELECT drink_type, SUM(quantity) as total_qty
+        FROM orders
+        GROUP BY drink_type
+        ORDER BY total_qty DESC
+        LIMIT 5
+    """)
+    top_drinks = c.fetchall()
+
     conn.close()
-    return render_template("index.html", orders=orders, totals=totals)
+
+    return render_template("index.html", summary=summary, top_customers=top_customers, top_drinks=top_drinks)
 
 @app.route("/export")
 def export():
@@ -90,29 +110,26 @@ def export():
         return redirect(url_for("login"))
 
     conn = sqlite3.connect(DB_NAME)
-    df = pd.read_sql_query("SELECT * FROM orders", conn)
+    df = pd.read_sql_query("""
+        SELECT unique_id,
+               SUM(quantity) as total_orders,
+               SUM(tokens) as total_tokens,
+               SUM(redeemed) as total_redeemed,
+               (SUM(tokens) - SUM(redeemed)) as balance
+        FROM orders
+        GROUP BY unique_id
+    """, conn)
     conn.close()
 
     if df.empty:
         return "No data to export"
 
-    template_file = "Bound CRM Test 3.xlsm"
-    wb = load_workbook(template_file, keep_vba=True)
-    ws = wb["Sheet1"]
+    # Write to Excel
+    output_file = "Cafe Loyalty Aggregated.xlsx"
+    with pd.ExcelWriter(output_file, engine='openpyxl') as writer:
+        df.to_excel(writer, sheet_name="Summary", index=False)
 
-    start_row = 2
-    for i, row in df.iterrows():
-        ws.cell(row=start_row + i, column=1, value=row["unique_id"])   # A
-        # B left for manual Unique ID if needed
-        ws.cell(row=start_row + i, column=3, value=row["quantity"])    # C Today's Order
-        ws.cell(row=start_row + i, column=4, value=row["drink_type"])  # D
-        # E left for your Excel formula (total orders)
-        ws.cell(row=start_row + i, column=6, value=row["tokens"])      # F Tokens
-        ws.cell(row=start_row + i, column=7, value=f"{row['redeemed']} / {row['tokens']}")  # G
-
-    export_file = "Bound Cafe Exported.xlsm"
-    wb.save(export_file)
-    return send_file(export_file, as_attachment=True)
+    return send_file(output_file, as_attachment=True)
 
 if __name__ == "__main__":
     init_db()
