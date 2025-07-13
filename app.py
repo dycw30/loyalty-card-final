@@ -4,6 +4,8 @@ from datetime import datetime
 import os
 import pandas as pd
 from openpyxl import load_workbook
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfgen import canvas
 
 app = Flask(__name__)
 app.secret_key = 'supersecretkey'
@@ -196,9 +198,57 @@ def export():
         ws.cell(row=start_row + i, column=5, value=int(row["balance"]))
         for j, drink in enumerate(drink_headers, start=6):
             ws.cell(row=start_row + i, column=j, value=int(row.get(drink, 0)))
-
     wb.save("Bound Cafe Aggregated Export.xlsm")
     return send_file("Bound Cafe Aggregated Export.xlsm", as_attachment=True)
+
+@app.route("/pdf/<unique_id>")
+def generate_pdf(unique_id):
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+
+    c.execute("""
+        SELECT SUM(quantity), SUM(quantity)/9, SUM(redeemed), (SUM(quantity)/9)-SUM(redeemed)
+        FROM orders WHERE unique_id=?
+    """, (unique_id,))
+    result = c.fetchone()
+    total_orders = int(result[0] or 0)
+    total_tokens = int(result[1] or 0)
+    total_redeemed = int(result[2] or 0)
+    balance = int(result[3] or 0)
+
+    c.execute("""
+        SELECT drink_type, SUM(quantity)
+        FROM orders
+        WHERE unique_id=?
+        GROUP BY drink_type
+    """, (unique_id,))
+    drinks = c.fetchall()
+    conn.close()
+
+    filename = f"Loyalty_Statement_{unique_id}.pdf"
+    pdf = canvas.Canvas(filename, pagesize=A4)
+    width, height = A4
+
+    pdf.setFont("Helvetica-Bold", 16)
+    pdf.drawString(50, height - 50, f"Loyalty Statement for Customer: {unique_id}")
+
+    pdf.setFont("Helvetica", 12)
+    pdf.drawString(50, height - 80, f"Total Orders: {total_orders}")
+    pdf.drawString(50, height - 100, f"Tokens Earned: {total_tokens}")
+    pdf.drawString(50, height - 120, f"Tokens Redeemed: {total_redeemed}")
+    pdf.drawString(50, height - 140, f"Balance Tokens: {balance}")
+
+    y = height - 180
+    pdf.setFont("Helvetica-Bold", 14)
+    pdf.drawString(50, y, "Drink Breakdown:")
+    y -= 20
+    pdf.setFont("Helvetica", 12)
+    for drink, qty in drinks:
+        pdf.drawString(70, y, f"{drink}: {qty}")
+        y -= 20
+
+    pdf.save()
+    return send_file(filename, as_attachment=True)
 
 @app.route("/admin", methods=["GET", "POST"])
 def admin():
@@ -217,7 +267,6 @@ def admin():
             except sqlite3.IntegrityError:
                 pass
             conn.close()
-
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     c.execute("SELECT username FROM baristas")
