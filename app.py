@@ -13,7 +13,7 @@ ADMIN_PASS = "adminpass2025"
 def init_db():
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    
+
     c.execute("""
         CREATE TABLE IF NOT EXISTS orders (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -35,7 +35,6 @@ def init_db():
     """)
     conn.commit()
 
-    # Insert default baristas if empty
     c.execute("SELECT COUNT(*) FROM baristas")
     if c.fetchone()[0] == 0:
         c.executemany("INSERT INTO baristas (username, password) VALUES (?, ?)", [
@@ -45,12 +44,12 @@ def init_db():
         ])
         conn.commit()
 
-    # Ensure barista_name column
     c.execute("PRAGMA table_info(orders)")
     columns = [col[1] for col in c.fetchall()]
     if 'barista_name' not in columns:
         c.execute("ALTER TABLE orders ADD COLUMN barista_name TEXT")
         conn.commit()
+
     conn.close()
 
 @app.route("/login", methods=["GET", "POST"])
@@ -83,6 +82,8 @@ def index():
         return redirect(url_for("login"))
 
     summary, top_customers, top_drinks = {}, [], []
+    error = None
+
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
 
@@ -95,10 +96,28 @@ def index():
         barista_name = session.get("barista")
         date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        c.execute("INSERT INTO orders (unique_id, drink_type, quantity, tokens, redeemed, barista_name, date) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                  (unique_id, drink, quantity, tokens, redeemed, barista_name, date))
-        conn.commit()
+        # Calculate current tokens balance
+        c.execute("""
+            SELECT COALESCE(SUM(quantity), 0) / 9 AS total_tokens,
+                   COALESCE(SUM(redeemed), 0) AS total_redeemed
+            FROM orders
+            WHERE unique_id = ?
+        """, (unique_id,))
+        result = c.fetchone()
+        total_tokens = int(result[0])
+        total_redeemed = int(result[1])
+        balance = total_tokens - total_redeemed
 
+        # Redemption check
+        if redeemed > balance:
+            error = f"Cannot redeem {redeemed} tokens. Only {balance} tokens available."
+        else:
+            c.execute("INSERT INTO orders (unique_id, drink_type, quantity, tokens, redeemed, barista_name, date) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                      (unique_id, drink, quantity, tokens, redeemed, barista_name, date))
+            conn.commit()
+            return redirect("/")
+
+    # Summary for dashboard
     c.execute("SELECT COUNT(DISTINCT unique_id), SUM(quantity), SUM(redeemed) FROM orders")
     result = c.fetchone()
     total_orders = result[1] or 0
@@ -129,7 +148,7 @@ def index():
     top_drinks = c.fetchall()
 
     conn.close()
-    return render_template("index.html", summary=summary, top_customers=top_customers, top_drinks=top_drinks)
+    return render_template("index.html", summary=summary, top_customers=top_customers, top_drinks=top_drinks, error=error)
 
 @app.route("/export")
 def export():
@@ -176,7 +195,7 @@ def admin():
                 c.execute("INSERT INTO baristas (username, password) VALUES (?, ?)", (username, password))
                 conn.commit()
             except sqlite3.IntegrityError:
-                pass  # skip duplicates
+                pass
             conn.close()
 
     conn = sqlite3.connect(DB_NAME)
