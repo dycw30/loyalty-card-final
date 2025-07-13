@@ -1,64 +1,34 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Cafe Loyalty Dashboard</title>
-    <link rel="stylesheet" href="/static/styles.css">
+    <title>Admin Barista Management</title>
 </head>
-<body style="background: #fdf6ec; color: #4b2e1b; font-family: Arial, sans-serif;">
+<body style="font-family: Arial;">
+    <h1>Admin - Manage Baristas</h1>
 
-<h1 style="text-align: center;">☕ Cafe Loyalty Dashboard</h1>
+    {% if error %}
+        <p style="color:red;">{{ error }}</p>
+    {% endif %}
 
-<div style="display: flex; justify-content: space-around; flex-wrap: wrap; margin-bottom: 20px;">
-    <div class="card">Total Customers<br><span>{{ summary.total_customers }}</span></div>
-    <div class="card">Total Tokens Issued<br><span>{{ summary.total_tokens }}</span></div>
-    <div class="card">Total Redeemed<br><span>{{ summary.total_redeemed }}</span></div>
-    <div class="card">Outstanding Balance<br><span>{{ summary.balance_tokens }}</span></div>
-</div>
+    <form method="post">
+        <label>Admin Password:</label><br>
+        <input type="password" name="master_password" required><br><br>
 
-<form method="post" style="max-width: 400px; margin: auto; background: #fff8f0; padding: 20px; border-radius: 8px; box-shadow: 2px 2px 5px #ccc;">
-    <label>Unique ID:</label><br>
-    <input type="text" name="unique_id" required><br>
+        <label>New Barista Username:</label><br>
+        <input type="text" name="username"><br>
+        <label>New Barista Password:</label><br>
+        <input type="password" name="password"><br><br>
 
-    <label>Quantity Ordered:</label><br>
-    <input type="number" name="quantity" min="1" value="1" required><br>
+        <button type="submit">Add Barista</button>
+    </form>
 
-    <label>Drink Type:</label><br>
-    <select name="drink" required>
-        <option value="">--Select Drink--</option>
-        <option value="Espresso">Espresso</option>
-        <option value="Latte">Latte</option>
-        <option value="Cappuccino">Cappuccino</option>
-        <option value="Flat White">Flat White</option>
-        <option value="Mocha">Mocha</option>
-    </select><br>
+    <h3>Current Baristas:</h3>
+    <ul>
+    {% for b in baristas %}
+        <li>{{ b }}</li>
+    {% endfor %}
+    </ul>
 
-    <label>Quantity To Redeem (optional):</label><br>
-    <input type="number" name="redeem" min="0"><br><br>
-
-    <button type="submit">Record Order</button>
-</form>
-
-<div style="margin-top: 30px; max-width: 800px; margin-left:auto; margin-right:auto;">
-    <h3>Top Customers by Tokens</h3>
-    <table>
-        <tr><th>Unique ID</th><th>Total Tokens</th></tr>
-        {% for cust in top_customers %}
-        <tr><td>{{ cust[0] }}</td><td>{{ cust[1] }}</td></tr>
-        {% endfor %}
-    </table>
-
-    <h3 style="margin-top:20px;">Most Popular Drinks</h3>
-    <table>
-        <tr><th>Drink</th><th>Quantity Sold</th></tr>
-        {% for drink in top_drinks %}
-        <tr><td>{{ drink[0] }}</td><td>{{ drink[1] }}</td></tr>
-        {% endfor %}
-    </table>
-</div>
-
-<div class="nav-links" style="text-align: center; margin-top: 20px;">
-    <a href="/export">Export Data to Bound CRM</a> |
-    <a href="/logout">Logout</a>
-</div>
+    <p><a href="/">Back to Dashboard</a></p>
 </body>
 </html>
