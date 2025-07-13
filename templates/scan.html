@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Customer Summary - {{ unique_id }}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+    <h2>Customer {{ unique_id }} Summary</h2>
+    <p>Total Orders: {{ total_orders }}</p>
+    <p>Tokens Earned: {{ total_tokens }}</p>
+    <p>Tokens Redeemed: {{ total_redeemed }}</p>
+    <p>Balance: {{ balance }}</p>
+
+    <h3>Drink Preferences</h3>
+    <ul>
+        {% for drink, qty in drinks %}
+            <li>{{ drink }}: {{ qty }}</li>
+        {% endfor %}
+    </ul>
+    <a href="/">← Back to Orders</a>
+</body>
+</html>

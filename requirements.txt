@@ -2,3 +2,4 @@ Flask
 pandas
 openpyxl
 reportlab
+qrcode[pil]
