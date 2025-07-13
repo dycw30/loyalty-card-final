@@ -12,6 +12,8 @@ DB_NAME = "orders.db"
 def init_db():
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
+    
+    # Orders table with barista_name
     c.execute("""
         CREATE TABLE IF NOT EXISTS orders (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -20,10 +22,38 @@ def init_db():
             quantity INTEGER,
             tokens INTEGER,
             redeemed INTEGER,
+            barista_name TEXT,
             date TEXT
         )
     """)
+    
+    # Baristas table
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS baristas (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE,
+            password TEXT
+        )
+    """)
     conn.commit()
+
+    # Insert default baristas if table is empty
+    c.execute("SELECT COUNT(*) FROM baristas")
+    if c.fetchone()[0] == 0:
+        c.executemany("INSERT INTO baristas (username, password) VALUES (?, ?)", [
+            ('david', 'coffee123'),
+            ('alice', 'latte456'),
+            ('bob', 'mocha789')
+        ])
+        conn.commit()
+
+    # Check if barista_name column exists, add if missing
+    c.execute("PRAGMA table_info(orders)")
+    columns = [col[1] for col in c.fetchall()]
+    if 'barista_name' not in columns:
+        c.execute("ALTER TABLE orders ADD COLUMN barista_name TEXT")
+        conn.commit()
+
     conn.close()
 
 @app.route("/login", methods=["GET", "POST"])
@@ -31,8 +61,16 @@ def login():
     if request.method == "POST":
         username = request.form["username"]
         password = request.form["password"]
-        if username == "admin" and password == "coffee123":
+        
+        conn = sqlite3.connect(DB_NAME)
+        c = conn.cursor()
+        c.execute("SELECT * FROM baristas WHERE username=? AND password=?", (username, password))
+        user = c.fetchone()
+        conn.close()
+
+        if user:
             session["logged_in"] = True
+            session["barista"] = username
             return redirect(url_for("index"))
         else:
             return render_template("login.html", error="Invalid credentials")
@@ -61,10 +99,11 @@ def index():
         quantity = int(request.form["quantity"])
         tokens = quantity // 9
         redeemed = int(request.form["redeem"]) if request.form.get("redeem") else 0
+        barista_name = session.get("barista")
         date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        c.execute("INSERT INTO orders (unique_id, drink_type, quantity, tokens, redeemed, date) VALUES (?, ?, ?, ?, ?, ?)",
-                  (unique_id, drink, quantity, tokens, redeemed, date))
+        c.execute("INSERT INTO orders (unique_id, drink_type, quantity, tokens, redeemed, barista_name, date) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                  (unique_id, drink, quantity, tokens, redeemed, barista_name, date))
         conn.commit()
 
     # Dashboard summary
@@ -123,17 +162,14 @@ def export():
     if df.empty:
         return "No data to export"
 
-    # Write aggregated data into Bound CRM file
     template_file = "Bound CRM Test 3.xlsm"
     wb = load_workbook(template_file, keep_vba=True)
     ws = wb["Sheet1"]
 
     start_row = 2
     for i, row in df.iterrows():
-        ws.cell(row=start_row + i, column=1, value=row["unique_id"])         # A
-        # B left blank
-        ws.cell(row=start_row + i, column=3, value=int(row["total_orders"])) # C
-        # D, E, F will be calculated by Excel formulas
+        ws.cell(row=start_row + i, column=1, value=row["unique_id"])
+        ws.cell(row=start_row + i, column=3, value=int(row["total_orders"]))
 
     output_file = "Bound Cafe Aggregated Export.xlsm"
     wb.save(output_file)
