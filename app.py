@@ -89,8 +89,8 @@ def index():
 
     if request.method == "POST":
         unique_id = request.form["unique_id"]
-        drink = request.form["drink"]
-        quantity = int(request.form["quantity"])
+        drink = request.form.get("drink") or None  # optional
+        quantity = int(request.form["quantity"]) if request.form.get("quantity") else 0
         tokens = quantity // 9
         redeemed = int(request.form["redeem"]) if request.form.get("redeem") else 0
         barista_name = session.get("barista")
@@ -108,7 +108,6 @@ def index():
         total_redeemed = int(result[1])
         balance = total_tokens - total_redeemed
 
-        # Redemption check
         if redeemed > balance:
             error = f"Cannot redeem {redeemed} tokens. Only {balance} tokens available."
         else:
@@ -117,7 +116,6 @@ def index():
             conn.commit()
             return redirect("/")
 
-    # Summary for dashboard
     c.execute("SELECT COUNT(DISTINCT unique_id), SUM(quantity), SUM(redeemed) FROM orders")
     result = c.fetchone()
     total_orders = result[1] or 0
@@ -141,6 +139,7 @@ def index():
     c.execute("""
         SELECT drink_type, SUM(quantity)
         FROM orders
+        WHERE drink_type IS NOT NULL
         GROUP BY drink_type
         ORDER BY SUM(quantity) DESC
         LIMIT 5
