@@ -1,34 +1,68 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Admin Barista Management</title>
+    <title>Loyalty Card Dashboard</title>
+    <style>
+        body { font-family: Arial; margin: 20px; }
+        h1 { color: #4e342e; }
+        .summary, .top { margin-bottom: 20px; }
+        .error { color: red; }
+    </style>
 </head>
-<body style="font-family: Arial;">
-    <h1>Admin - Manage Baristas</h1>
+<body>
+    <h1>Loyalty Card Dashboard</h1>
 
     {% if error %}
-        <p style="color:red;">{{ error }}</p>
+        <p class="error">{{ error }}</p>
     {% endif %}
 
-    <form method="post">
-        <label>Admin Password:</label><br>
-        <input type="password" name="master_password" required><br><br>
+    <div class="summary">
+        <h3>Summary</h3>
+        <p>Total Customers: {{ summary.total_customers }}</p>
+        <p>Total Tokens Earned: {{ summary.total_tokens }}</p>
+        <p>Total Redeemed: {{ summary.total_redeemed }}</p>
+        <p>Balance Tokens: {{ summary.balance_tokens }}</p>
+    </div>
 
-        <label>New Barista Username:</label><br>
-        <input type="text" name="username"><br>
-        <label>New Barista Password:</label><br>
-        <input type="password" name="password"><br><br>
+    <div class="order-form">
+        <h3>Record New Order</h3>
+        <form method="post">
+            <label>Unique ID:</label><br>
+            <input type="text" name="unique_id" required><br>
+            <label>Drink Type:</label><br>
+            <select name="drink" required>
+                <option value="Espresso">Espresso</option>
+                <option value="Latte">Latte</option>
+                <option value="Cappuccino">Cappuccino</option>
+                <option value="Mocha">Mocha</option>
+                <option value="Americano">Americano</option>
+            </select><br>
+            <label>Quantity:</label><br>
+            <input type="number" name="quantity" min="1" required><br>
+            <label>Redeem Tokens:</label><br>
+            <input type="number" name="redeem" min="0"><br><br>
+            <button type="submit">Submit Order</button>
+        </form>
+    </div>
 
-        <button type="submit">Add Barista</button>
-    </form>
+    <div class="top">
+        <h3>Top Customers (by Tokens)</h3>
+        <ul>
+        {% for uid, tokens in top_customers %}
+            <li>{{ uid }} - {{ tokens }} tokens</li>
+        {% endfor %}
+        </ul>
+    </div>
 
-    <h3>Current Baristas:</h3>
-    <ul>
-    {% for b in baristas %}
-        <li>{{ b }}</li>
-    {% endfor %}
-    </ul>
+    <div class="top">
+        <h3>Top Drinks</h3>
+        <ul>
+        {% for drink, qty in top_drinks %}
+            <li>{{ drink }} - {{ qty }} sold</li>
+        {% endfor %}
+        </ul>
+    </div>
 
-    <p><a href="/">Back to Dashboard</a></p>
+    <p><a href="/logout">Logout</a> | <a href="/admin">Admin</a> | <a href="/export">Export Data</a></p>
 </body>
 </html>
