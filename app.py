@@ -44,11 +44,6 @@ def init_db():
             ('bob', 'mocha789')
         ])
         conn.commit()
-    c.execute("PRAGMA table_info(orders)")
-    columns = [col[1] for col in c.fetchall()]
-    if 'barista_name' not in columns:
-        c.execute("ALTER TABLE orders ADD COLUMN barista_name TEXT")
-        conn.commit()
     conn.close()
 
 @app.route("/login", methods=["GET", "POST"])
@@ -152,27 +147,36 @@ def export():
         FROM orders
         GROUP BY unique_id
     """, conn)
+
     drink_df = pd.read_sql_query("""
         SELECT unique_id, drink_type, SUM(quantity) AS qty
         FROM orders
         WHERE drink_type IS NOT NULL
         GROUP BY unique_id, drink_type
     """, conn)
+
     if not drink_df.empty:
         drink_pivot = drink_df.pivot(index="unique_id", columns="drink_type", values="qty").fillna(0).astype(int)
     else:
         drink_pivot = pd.DataFrame()
+
     if not drink_pivot.empty:
         df = df.set_index("unique_id").join(drink_pivot).reset_index()
+
     conn.close()
+
     if df.empty:
         return "No data to export"
-    wb = load_workbook("Bound CRM Test 3.xlsm", keep_vba=True)
+
+    wb = load_workbook("Bound CRM Clean.xlsx")  # ✅ macro-free .xlsx
     ws = wb["Sheet1"]
+
     headers = ["Unique ID", "Total Orders", "Tokens Earned", "Redeemed", "Balance"]
     drink_headers = list(drink_pivot.columns) if not drink_pivot.empty else []
+
     for idx, header in enumerate(headers + drink_headers, start=1):
         ws.cell(row=1, column=idx, value=header)
+
     start_row = 2
     for i, row in df.iterrows():
         ws.cell(row=start_row + i, column=1, value=row["unique_id"])
@@ -182,8 +186,9 @@ def export():
         ws.cell(row=start_row + i, column=5, value=int(row["balance"]))
         for j, drink in enumerate(drink_headers, start=6):
             ws.cell(row=start_row + i, column=j, value=int(row.get(drink, 0)))
-    wb.save("Bound Cafe Aggregated Export.xlsm")
-    return send_file("Bound Cafe Aggregated Export.xlsm", as_attachment=True)
+
+    wb.save("Bound Cafe Aggregated Export.xlsx")
+    return send_file("Bound Cafe Aggregated Export.xlsx", as_attachment=True)
 
 @app.route("/pdf/<unique_id>")
 def generate_pdf(unique_id):
