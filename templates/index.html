@@ -1,72 +1,45 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Loyalty Card Dashboard</title>
-    <link rel="stylesheet" href="/static/styles.css">
+    <title>Loyalty Card - Barista Dashboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        h1 { color: #4CAF50; }
+        input, select { padding: 6px; margin: 5px 0; width: 220px; }
+        button { padding: 8px 16px; background: #4CAF50; color: white; border: none; cursor: pointer; }
+        button:hover { background: #45a049; }
+        .msg { margin-top: 15px; color: #333; }
+        a { display: block; margin-top: 20px; color: #555; }
+    </style>
 </head>
 <body>
-    <h1>Loyalty Card Dashboard</h1>
+    <h1>Barista Order Entry</h1>
 
-    {% if error %}
-        <p class="error">{{ error }}</p>
+    {% if message %}
+        <p class="msg">{{ message }}</p>
     {% endif %}
 
-    <div class="summary">
-        <h3>Summary</h3>
-        <p>Total Customers: {{ summary.total_customers }}</p>
-        <p>Total Tokens Earned: {{ summary.total_tokens }}</p>
-        <p>Total Redeemed: {{ summary.total_redeemed }}</p>
-        <p>Balance Tokens: {{ summary.balance_tokens }}</p>
-    </div>
+    <form method="post">
+        <label>Unique ID:</label><br>
+        <input type="text" name="unique_id" required><br>
 
-    <div class="order-form">
-        <h3>Record New Order or Redemption</h3>
-        <form method="post">
-            <label>Unique ID:</label><br>
-            <input type="text" name="unique_id" required><br>
+        <label>Drink Type:</label><br>
+        <select name="drink">
+            {% for drink in drinks %}
+                <option value="{{ drink }}">{{ drink }}</option>
+            {% endfor %}
+            <option value="">N/A</option>
+        </select><br>
 
-            <label>Drink Type (optional):</label><br>
-            <select name="drink">
-                <option value="">N/A</option>
-                <option value="Espresso">Espresso</option>
-                <option value="Latte">Latte</option>
-                <option value="Cappuccino">Cappuccino</option>
-                <option value="Mocha">Mocha</option>
-                <option value="Americano">Americano</option>
-            </select><br>
+        <label>Quantity Ordered:</label><br>
+        <input type="number" name="quantity" min="0" value="0"><br>
 
-            <label>Quantity (can be 0):</label><br>
-            <input type="number" name="quantity" min="0" value="0"><br>
+        <label>Tokens to Redeem:</label><br>
+        <input type="number" name="redeem" min="0" value="0"><br><br>
 
-            <label>Redeem Tokens:</label><br>
-            <input type="number" name="redeem" min="0" value="0"><br><br>
+        <button type="submit">Submit Order</button>
+    </form>
 
-            <button type="submit">Submit</button>
-        </form>
-    </div>
-
-    <div class="top">
-        <h3>Top Customers (by Tokens)</h3>
-        <ul>
-        {% for uid, tokens in top_customers %}
-            <li>{{ uid }} - {{ tokens }} tokens</li>
-        {% endfor %}
-        </ul>
-    </div>
-
-    <div class="top">
-        <h3>Top Drinks</h3>
-        <ul>
-        {% for drink, qty in top_drinks %}
-            <li>{{ drink }} - {{ qty }} sold</li>
-        {% endfor %}
-        </ul>
-    </div>
-
-    <p>
-        <a href="/logout">Logout</a> |
-        <a href="/admin">Admin</a> |
-        <a href="/export">Export to Excel</a>
-    </p>
+    <a href="{{ url_for('logout') }}">Logout</a>
 </body>
 </html>
