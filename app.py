@@ -3,6 +3,8 @@ import sqlite3
 from datetime import datetime
 import os
 import pandas as pd
+import qrcode
+from io import BytesIO
 
 app = Flask(__name__)
 app.secret_key = 'supersecretkey'
@@ -36,7 +38,7 @@ def init_db():
             role TEXT
         )
     """)
-    # Seed data
+    # Seed data if empty
     c.execute("SELECT COUNT(*) FROM drinks")
     if c.fetchone()[0] == 0:
         c.executemany("INSERT INTO drinks (name) VALUES (?)", [("Mocha",), ("Latte",), ("Espresso",), ("Cappuccino",)])
@@ -88,6 +90,7 @@ def index():
         redeemed = int(request.form.get("redeem") or 0)
         tokens = quantity // 9
         date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
         c.execute("SELECT COALESCE(SUM(tokens),0)-COALESCE(SUM(redeemed),0) FROM orders WHERE unique_id=?", (unique_id,))
         balance = c.fetchone()[0]
 
@@ -179,6 +182,15 @@ def export():
     output_file = "Bound Cafe Aggregated Export.xlsx"
     combined.to_excel(output_file, index=False)
     return send_file(output_file, as_attachment=True)
+
+@app.route("/qr")
+def qr():
+    url = "https://loyalty-card-app-v2.onrender.com"
+    img = qrcode.make(url)
+    buf = BytesIO()
+    img.save(buf)
+    buf.seek(0)
+    return send_file(buf, mimetype='image/png', download_name='CafeQR.png', as_attachment=False)
 
 if __name__ == "__main__":
     init_db()
