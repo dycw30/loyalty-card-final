@@ -4,16 +4,19 @@
     <title>Loyalty Card - Barista Dashboard</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; }
-        h1 { color: #4CAF50; }
+        h1, h2 { color: #4CAF50; }
         input, select { padding: 6px; margin: 5px 0; width: 220px; }
         button { padding: 8px 16px; background: #4CAF50; color: white; border: none; cursor: pointer; }
         button:hover { background: #45a049; }
         .msg { margin-top: 15px; color: #333; }
+        table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
         a { display: block; margin-top: 20px; color: #555; }
     </style>
 </head>
 <body>
-    <h1>Barista Order Entry</h1>
+    <h1>Barista Order Dashboard</h1>
 
     {% if message %}
         <p class="msg">{{ message }}</p>
@@ -39,6 +42,28 @@
 
         <button type="submit">Submit Order</button>
     </form>
+
+    {% if summary %}
+        <h2>Summary for ID: {{ summary.unique_id }}</h2>
+        <p>Total Orders: {{ summary.total_orders }}</p>
+        <p>Tokens Earned: {{ summary.tokens_earned }}</p>
+        <p>Tokens Redeemed: {{ summary.redeemed }}</p>
+        <p>Token Balance: {{ summary.balance }}</p>
+
+        <h3>Recent Orders</h3>
+        <table>
+            <tr><th>Date</th><th>Drink</th><th>Qty</th><th>Tokens</th><th>Redeemed</th></tr>
+            {% for order in recent_orders %}
+                <tr>
+                    <td>{{ order.date }}</td>
+                    <td>{{ order.drink_type }}</td>
+                    <td>{{ order.quantity }}</td>
+                    <td>{{ order.tokens }}</td>
+                    <td>{{ order.redeemed }}</td>
+                </tr>
+            {% endfor %}
+        </table>
+    {% endif %}
 
     <a href="{{ url_for('logout') }}">Logout</a>
 </body>
