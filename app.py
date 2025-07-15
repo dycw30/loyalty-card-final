@@ -17,6 +17,8 @@ def init_db():
         CREATE TABLE IF NOT EXISTS orders (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             unique_id TEXT,
+            customer_name TEXT,
+            phone_number TEXT,
             drink_type TEXT,
             quantity INTEGER,
             tokens INTEGER,
@@ -38,7 +40,6 @@ def init_db():
             role TEXT
         )
     """)
-    # Seed data if empty
     c.execute("SELECT COUNT(*) FROM drinks")
     if c.fetchone()[0] == 0:
         c.executemany("INSERT INTO drinks (name) VALUES (?)", [("Mocha",), ("Latte",), ("Espresso",), ("Cappuccino",)])
@@ -85,6 +86,8 @@ def index():
 
     if request.method == "POST":
         unique_id = request.form["unique_id"]
+        customer_name = request.form.get("customer_name")
+        phone_number = request.form.get("phone_number")
         drink = request.form.get("drink")
         quantity = int(request.form.get("quantity") or 0)
         redeemed = int(request.form.get("redeem") or 0)
@@ -97,12 +100,13 @@ def index():
         if redeemed > balance:
             message = f"Cannot redeem {redeemed} tokens. Only {balance} available."
         else:
-            c.execute("INSERT INTO orders (unique_id, drink_type, quantity, tokens, redeemed, date) VALUES (?, ?, ?, ?, ?, ?)",
-                      (unique_id, drink, quantity, tokens, redeemed, date))
+            c.execute("""
+                INSERT INTO orders (unique_id, customer_name, phone_number, drink_type, quantity, tokens, redeemed, date)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (unique_id, customer_name, phone_number, drink, quantity, tokens, redeemed, date))
             conn.commit()
             message = "Order saved."
 
-        # Refresh summary after submission
         c.execute("""
             SELECT COALESCE(SUM(quantity),0), COALESCE(SUM(tokens),0), COALESCE(SUM(redeemed),0)
             FROM orders WHERE unique_id=?
@@ -120,19 +124,15 @@ def index():
         recent_orders = [{"date": row[0], "drink_type": row[1], "quantity": row[2], "tokens": row[3], "redeemed": row[4]}
                          for row in c.fetchall()]
 
-    # Always show all summary table
     c.execute("""
-        SELECT unique_id,
-               COALESCE(SUM(quantity),0),
-               COALESCE(SUM(tokens),0),
-               COALESCE(SUM(redeemed),0),
+        SELECT unique_id, COALESCE(MAX(customer_name),''), COALESCE(MAX(phone_number),''),
+               COALESCE(SUM(quantity),0), COALESCE(SUM(tokens),0), COALESCE(SUM(redeemed),0),
                COALESCE(SUM(tokens),0) - COALESCE(SUM(redeemed),0) AS balance
         FROM orders
-        GROUP BY unique_id
-        ORDER BY unique_id
+        GROUP BY unique_id ORDER BY unique_id
     """)
-    all_summary = [{"unique_id": row[0], "total_orders": row[1], "tokens_earned": row[2],
-                    "redeemed": row[3], "balance": row[4]} for row in c.fetchall()]
+    all_summary = [{"unique_id": row[0], "customer_name": row[1], "phone_number": row[2],
+                    "total_orders": row[3], "tokens_earned": row[4], "redeemed": row[5], "balance": row[6]} for row in c.fetchall()]
     conn.close()
 
     return render_template("index.html", drinks=drinks, message=message, summary=summary,
@@ -145,15 +145,22 @@ def admin():
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     if request.method == "POST":
-        new_drink = request.form.get("new_drink")
-        new_user = request.form.get("new_user")
-        new_pass = request.form.get("new_pass")
-        if new_drink:
-            try: c.execute("INSERT INTO drinks (name) VALUES (?)", (new_drink,))
+        action = request.form.get("action")
+        if action == "add_drink":
+            try: c.execute("INSERT INTO drinks (name) VALUES (?)", (request.form["new_drink"],))
             except sqlite3.IntegrityError: pass
-        if new_user and new_pass:
-            try: c.execute("INSERT INTO users (username, password, role) VALUES (?, ?, 'barista')", (new_user, new_pass))
+        elif action == "edit_drink":
+            c.execute("UPDATE drinks SET name=? WHERE name=?", (request.form["edit_drink_new"], request.form["edit_drink_old"]))
+        elif action == "delete_drink":
+            c.execute("DELETE FROM drinks WHERE name=?", (request.form["delete_drink"],))
+        elif action == "add_user":
+            try: c.execute("INSERT INTO users (username, password, role) VALUES (?, ?, 'barista')",
+                           (request.form["new_user"], request.form["new_pass"]))
             except sqlite3.IntegrityError: pass
+        elif action == "edit_user":
+            c.execute("UPDATE users SET password=? WHERE username=?", (request.form["new_pass"], request.form["edit_user"]))
+        elif action == "delete_user":
+            c.execute("DELETE FROM users WHERE username=?", (request.form["delete_user"],))
         conn.commit()
     c.execute("SELECT name FROM drinks ORDER BY name")
     drinks = [row[0] for row in c.fetchall()]
@@ -161,6 +168,32 @@ def admin():
     users = [{"username": row[0], "role": row[1]} for row in c.fetchall()]
     conn.close()
     return render_template("admin.html", drinks=drinks, users=users)
+
+@app.route("/customer")
+def customer():
+    if session.get("role") != "admin":
+        return redirect(url_for("login"))
+    unique_id = request.args.get("unique_id")
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute("""
+        SELECT COALESCE(SUM(quantity),0), COALESCE(SUM(tokens),0), COALESCE(SUM(redeemed),0)
+        FROM orders WHERE unique_id=?
+    """, (unique_id,))
+    total_orders, tokens_earned, total_redeemed = c.fetchone()
+    balance = tokens_earned - total_redeemed
+    summary = {"unique_id": unique_id, "total_orders": total_orders,
+               "tokens_earned": tokens_earned, "redeemed": total_redeemed, "balance": balance}
+
+    c.execute("""
+        SELECT date, drink_type, quantity, tokens, redeemed
+        FROM orders WHERE unique_id=?
+        ORDER BY date DESC
+    """, (unique_id,))
+    transactions = [{"date": row[0], "drink": row[1], "quantity": row[2], "tokens": row[3], "redeemed": row[4]}
+                    for row in c.fetchall()]
+    conn.close()
+    return render_template("customer.html", unique_id=unique_id, summary=summary, transactions=transactions)
 
 @app.route("/export")
 def export():
@@ -172,10 +205,8 @@ def export():
     if df.empty:
         return "No data to export"
     drink_pivot = df.pivot_table(index='unique_id', columns='drink_type', values='quantity', aggfunc='sum', fill_value=0)
-    summary = df.groupby('unique_id').agg(
-        total_orders=('quantity', 'sum'),
-        tokens_earned=('tokens', 'sum'),
-        redeemed=('redeemed', 'sum')
+    summary = df.groupby(['unique_id','customer_name','phone_number']).agg(
+        total_orders=('quantity','sum'), tokens_earned=('tokens','sum'), redeemed=('redeemed','sum')
     ).reset_index()
     summary["balance"] = summary["tokens_earned"] - summary["redeemed"]
     combined = summary.merge(drink_pivot, on='unique_id', how='left').fillna(0)

@@ -1,59 +1,84 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Admin - Manage Drinks & Users</title>
+    <title>Admin Panel - Loyalty App</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        h1, h2 { color: #4CAF50; }
-        input[type=text], input[type=password] { padding: 5px; width: 200px; margin: 5px 0; }
-        button { padding: 6px 12px; background: #4CAF50; color: white; border: none; cursor: pointer; }
-        button:hover { background: #45a049; }
-        .section { margin-bottom: 30px; }
-        ul { list-style-type: none; padding: 0; }
-        li { margin: 5px 0; }
-        table { border-collapse: collapse; width: 50%; margin-top: 10px; }
-        th, td { border: 1px solid #ddd; padding: 8px; }
-        th { background-color: #f2f2f2; }
-        a { display: inline-block; margin-top: 20px; color: #555; }
+        body { font-family: Arial; max-width: 700px; margin: auto; padding: 10px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+        form { margin-top: 20px; background: #f4f4f4; padding: 10px; border-radius: 5px; }
+        button { padding: 5px 10px; margin: 2px;}
     </style>
 </head>
 <body>
-    <h1>Admin Panel</h1>
+    <h1>Admin Dashboard</h1>
 
-    <div class="section">
-        <h2>Current Drinks</h2>
-        <ul>
-            {% for drink in drinks %}
-                <li>{{ drink }}</li>
-            {% endfor %}
-        </ul>
-        <form method="post">
-            <input type="text" name="new_drink" placeholder="e.g. Matcha Latte" required>
-            <button type="submit">Add Drink</button>
-        </form>
+    <h2>Manage Drinks</h2>
+    <table>
+        <tr><th>Drink</th><th>Actions</th></tr>
+        {% for drink in drinks %}
+        <tr>
+            <td>{{ drink }}</td>
+            <td>
+                <form style="display:inline;" method="post">
+                    <input type="hidden" name="edit_drink_old" value="{{ drink }}">
+                    <input type="text" name="edit_drink_new" placeholder="New name" required>
+                    <button type="submit" name="action" value="edit_drink">Edit</button>
+                </form>
+                <form style="display:inline;" method="post">
+                    <input type="hidden" name="delete_drink" value="{{ drink }}">
+                    <button type="submit" name="action" value="delete_drink">Delete</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+
+    <form method="post">
+        <h3>Add New Drink</h3>
+        <input type="text" name="new_drink" placeholder="Drink Name" required>
+        <button type="submit" name="action" value="add_drink">Add Drink</button>
+    </form>
+
+    <h2>Manage Baristas</h2>
+    <table>
+        <tr><th>Username</th><th>Role</th><th>Actions</th></tr>
+        {% for user in users %}
+        <tr>
+            <td>{{ user.username }}</td><td>{{ user.role }}</td>
+            <td>
+                <form style="display:inline;" method="post">
+                    <input type="hidden" name="edit_user" value="{{ user.username }}">
+                    <input type="password" name="new_pass" placeholder="New Password" required>
+                    <button type="submit" name="action" value="edit_user">Update Password</button>
+                </form>
+                {% if user.username != 'admin' %}
+                <form style="display:inline;" method="post">
+                    <input type="hidden" name="delete_user" value="{{ user.username }}">
+                    <button type="submit" name="action" value="delete_user">Delete</button>
+                </form>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+
+    <form method="post">
+        <h3>Add New Barista</h3>
+        <input type="text" name="new_user" placeholder="Username" required>
+        <input type="password" name="new_pass" placeholder="Password" required>
+        <button type="submit" name="action" value="add_user">Add Barista</button>
+    </form>
+
+    <h3>Customer Lookup</h3>
+    <form action="/customer" method="get">
+        <input type="text" name="unique_id" placeholder="Enter Unique ID" required>
+        <button type="submit">Search</button>
+    </form>
+
+    <div style="text-align:center; margin-top:20px;">
+        <a href="/logout"><button>Logout</button></a>
     </div>
-
-    <div class="section">
-        <h2>Current Users</h2>
-        <table>
-            <tr>
-                <th>Username</th>
-                <th>Role</th>
-            </tr>
-            {% for user in users %}
-                <tr>
-                    <td>{{ user.username }}</td>
-                    <td>{{ user.role }}</td>
-                </tr>
-            {% endfor %}
-        </table>
-        <form method="post" style="margin-top: 15px;">
-            <input type="text" name="new_user" placeholder="New Username" required><br>
-            <input type="password" name="new_pass" placeholder="New Password" required><br>
-            <button type="submit">Add Barista</button>
-        </form>
-    </div>
-
-    <a href="{{ url_for('logout') }}">Logout</a>
 </body>
 </html>

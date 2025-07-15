@@ -1,84 +1,108 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Loyalty Card - Barista Dashboard</title>
+    <title>Loyalty Card App</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        h1, h2 { color: #4CAF50; }
-        input, select { padding: 6px; margin: 5px 0; width: 220px; }
-        button { padding: 8px 16px; background: #4CAF50; color: white; border: none; cursor: pointer; }
-        button:hover { background: #45a049; }
-        table { border-collapse: collapse; width: 100%; margin-top: 20px; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        th { background-color: #f2f2f2; }
-        a.export-link { float: right; margin-top: -40px; }
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 10px; }
+        h1, h2 { text-align: center; }
+        form { background: #f4f4f4; padding: 15px; border-radius: 5px; }
+        input, select { width: 100%; padding: 8px; margin: 6px 0; }
+        button { width: 100%; padding: 10px; background: #333; color: white; border: none; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+        tr:nth-child(even) { background: #f9f9f9; }
+        .message { color: green; text-align: center; margin-top: 10px; }
     </style>
 </head>
 <body>
-    <h1>Barista Dashboard</h1>
-    <a href="{{ url_for('export') }}" class="export-link">Download Excel Report</a>
-
-    {% if message %}
-        <p style="color: green;">{{ message }}</p>
-    {% endif %}
+    <h1>Café Loyalty Dashboard</h1>
 
     <form method="post">
-        <label>Unique ID:</label><br>
-        <input type="text" name="unique_id" required><br>
+        <label>Unique ID:</label>
+        <input type="text" name="unique_id" required>
 
-        <label>Drink Type:</label><br>
+        <label>Customer Name (optional):</label>
+        <input type="text" name="customer_name">
+
+        <label>Phone Number (optional):</label>
+        <input type="text" name="phone_number">
+
+        <label>Drink Type:</label>
         <select name="drink">
-            {% for drink in drinks %}
-                <option value="{{ drink }}">{{ drink }}</option>
-            {% endfor %}
             <option value="">N/A</option>
-        </select><br>
+            {% for drink in drinks %}
+            <option value="{{ drink }}">{{ drink }}</option>
+            {% endfor %}
+        </select>
 
-        <label>Quantity Ordered:</label><br>
-        <input type="number" name="quantity" min="0" value="0"><br>
+        <label>Quantity of Drinks:</label>
+        <input type="number" name="quantity" min="0" value="0">
 
-        <label>Tokens to Redeem:</label><br>
-        <input type="number" name="redeem" min="0" value="0"><br><br>
+        <label>Redeem Tokens:</label>
+        <input type="number" name="redeem" min="0" value="0">
 
         <button type="submit">Submit Order</button>
     </form>
 
-    {% if summary %}
-        <h2>Summary for {{ summary.unique_id }}</h2>
-        <p>Total Orders: {{ summary.total_orders }}</p>
-        <p>Tokens Earned: {{ summary.tokens_earned }}</p>
-        <p>Tokens Redeemed: {{ summary.redeemed }}</p>
-        <p>Balance: {{ summary.balance }}</p>
+    {% if message %}
+    <p class="message">{{ message }}</p>
+    {% endif %}
 
-        <h3>Recent Orders</h3>
-        <table>
-            <tr><th>Date</th><th>Drink</th><th>Qty</th><th>Tokens</th><th>Redeemed</th></tr>
-            {% for order in recent_orders %}
-                <tr>
-                    <td>{{ order.date }}</td>
-                    <td>{{ order.drink_type }}</td>
-                    <td>{{ order.quantity }}</td>
-                    <td>{{ order.tokens }}</td>
-                    <td>{{ order.redeemed }}</td>
-                </tr>
-            {% endfor %}
-        </table>
+    {% if summary %}
+    <h2>Summary for {{ summary.unique_id }}</h2>
+    <table>
+        <tr><th>Total Orders</th><th>Tokens Earned</th><th>Redeemed</th><th>Balance</th></tr>
+        <tr>
+            <td>{{ summary.total_orders }}</td>
+            <td>{{ summary.tokens_earned }}</td>
+            <td>{{ summary.redeemed }}</td>
+            <td>{{ summary.balance }}</td>
+        </tr>
+    </table>
+
+    <h3>Recent Orders</h3>
+    <table>
+        <tr><th>Date</th><th>Drink</th><th>Qty</th><th>Tokens</th><th>Redeemed</th></tr>
+        {% for order in recent_orders %}
+        <tr>
+            <td>{{ order.date }}</td>
+            <td>{{ order.drink_type }}</td>
+            <td>{{ order.quantity }}</td>
+            <td>{{ order.tokens }}</td>
+            <td>{{ order.redeemed }}</td>
+        </tr>
+        {% endfor %}
+    </table>
     {% endif %}
 
     <h2>All Customers Summary</h2>
     <table>
-        <tr><th>Unique ID</th><th>Total Orders</th><th>Tokens Earned</th><th>Redeemed</th><th>Balance</th></tr>
+        <tr>
+            <th>Unique ID</th>
+            <th>Name</th>
+            <th>Phone</th>
+            <th>Total Orders</th>
+            <th>Tokens</th>
+            <th>Redeemed</th>
+            <th>Balance</th>
+        </tr>
         {% for row in all_summary %}
-            <tr>
-                <td>{{ row.unique_id }}</td>
-                <td>{{ row.total_orders }}</td>
-                <td>{{ row.tokens_earned }}</td>
-                <td>{{ row.redeemed }}</td>
-                <td>{{ row.balance }}</td>
-            </tr>
+        <tr>
+            <td>{{ row.unique_id }}</td>
+            <td>{{ row.customer_name }}</td>
+            <td>{{ row.phone_number }}</td>
+            <td>{{ row.total_orders }}</td>
+            <td>{{ row.tokens_earned }}</td>
+            <td>{{ row.redeemed }}</td>
+            <td>{{ row.balance }}</td>
+        </tr>
         {% endfor %}
     </table>
 
-    <a href="{{ url_for('logout') }}">Logout</a>
+    <div style="text-align:center; margin-top:20px;">
+        <a href="/export"><button style="background:green;">Export to Excel</button></a>
+        <a href="/logout"><button>Logout</button></a>
+    </div>
 </body>
 </html>

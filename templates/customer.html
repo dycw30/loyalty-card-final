@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Customer Lookup</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body { font-family: Arial; max-width: 700px; margin: auto; padding: 10px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+    </style>
+</head>
+<body>
+    <h1>Customer {{ unique_id }} Details</h1>
+    <table>
+        <tr><th>Total Orders</th><th>Tokens Earned</th><th>Redeemed</th><th>Balance</th></tr>
+        <tr><td>{{ summary.total_orders }}</td><td>{{ summary.tokens_earned }}</td><td>{{ summary.redeemed }}</td><td>{{ summary.balance }}</td></tr>
+    </table>
+
+    <h3>All Transactions</h3>
+    <table>
+        <tr><th>Date</th><th>Drink</th><th>Qty</th><th>Tokens</th><th>Redeemed</th></tr>
+        {% for row in transactions %}
+        <tr><td>{{ row.date }}</td><td>{{ row.drink }}</td><td>{{ row.quantity }}</td><td>{{ row.tokens }}</td><td>{{ row.redeemed }}</td></tr>
+        {% endfor %}
+    </table>
+
+    <div style="text-align:center; margin-top:20px;">
+        <a href="/admin"><button>Back to Admin</button></a>
+    </div>
+</body>
+</html>
