@@ -138,6 +138,71 @@ def index():
     return render_template("index.html", drinks=drinks, message=message, summary=summary,
                            recent_orders=recent_orders, all_summary=all_summary)
 
+@app.route("/customer")
+def customer():
+    if session.get("role") != "admin":
+        return redirect(url_for("login"))
+    unique_id = request.args.get("unique_id")
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute("""
+        SELECT COALESCE(SUM(quantity),0), COALESCE(SUM(tokens),0), COALESCE(SUM(redeemed),0)
+        FROM orders WHERE unique_id=?
+    """, (unique_id,))
+    total_orders, tokens_earned, total_redeemed = c.fetchone()
+    balance = tokens_earned - total_redeemed
+
+    c.execute("""
+        SELECT customer_name, phone_number FROM orders 
+        WHERE unique_id=? ORDER BY date DESC LIMIT 1
+    """, (unique_id,))
+    result = c.fetchone()
+    customer_name, phone_number = result if result else ("", "")
+
+    c.execute("""
+        SELECT date, drink_type, quantity, tokens, redeemed
+        FROM orders WHERE unique_id=?
+        ORDER BY date DESC
+    """, (unique_id,))
+    transactions = [{"date": row[0], "drink": row[1], "quantity": row[2], "tokens": row[3], "redeemed": row[4]}
+                    for row in c.fetchall()]
+    conn.close()
+
+    summary = {
+        "unique_id": unique_id, "customer_name": customer_name, "phone_number": phone_number,
+        "total_orders": total_orders, "tokens_earned": tokens_earned,
+        "redeemed": total_redeemed, "balance": balance
+    }
+    return render_template("customer.html", summary=summary, transactions=transactions)
+
+@app.route("/export")
+def export():
+    if not session.get("role"):
+        return redirect(url_for("login"))
+    conn = sqlite3.connect(DB_NAME)
+    df = pd.read_sql_query("SELECT * FROM orders", conn)
+    conn.close()
+    if df.empty:
+        return "No data to export"
+    drink_pivot = df.pivot_table(index='unique_id', columns='drink_type', values='quantity', aggfunc='sum', fill_value=0)
+    summary = df.groupby(['unique_id','customer_name','phone_number']).agg(
+        total_orders=('quantity','sum'), tokens_earned=('tokens','sum'), redeemed=('redeemed','sum')
+    ).reset_index()
+    summary["balance"] = summary["tokens_earned"] - summary["redeemed"]
+    combined = summary.merge(drink_pivot, on='unique_id', how='left').fillna(0)
+    output_file = "Bound Cafe Aggregated Export.xlsx"
+    combined.to_excel(output_file, index=False)
+    return send_file(output_file, as_attachment=True)
+
+@app.route("/qr")
+def qr():
+    url = "https://loyalty-card-app-v2.onrender.com"
+    img = qrcode.make(url)
+    buf = BytesIO()
+    img.save(buf)
+    buf.seek(0)
+    return send_file(buf, mimetype='image/png', download_name='CafeQR.png', as_attachment=False)
+
 @app.route("/admin", methods=["GET", "POST"])
 def admin():
     if session.get("role") != "admin":
@@ -168,60 +233,6 @@ def admin():
     users = [{"username": row[0], "role": row[1]} for row in c.fetchall()]
     conn.close()
     return render_template("admin.html", drinks=drinks, users=users)
-
-@app.route("/customer")
-def customer():
-    if session.get("role") != "admin":
-        return redirect(url_for("login"))
-    unique_id = request.args.get("unique_id")
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute("""
-        SELECT COALESCE(SUM(quantity),0), COALESCE(SUM(tokens),0), COALESCE(SUM(redeemed),0)
-        FROM orders WHERE unique_id=?
-    """, (unique_id,))
-    total_orders, tokens_earned, total_redeemed = c.fetchone()
-    balance = tokens_earned - total_redeemed
-    summary = {"unique_id": unique_id, "total_orders": total_orders,
-               "tokens_earned": tokens_earned, "redeemed": total_redeemed, "balance": balance}
-
-    c.execute("""
-        SELECT date, drink_type, quantity, tokens, redeemed
-        FROM orders WHERE unique_id=?
-        ORDER BY date DESC
-    """, (unique_id,))
-    transactions = [{"date": row[0], "drink": row[1], "quantity": row[2], "tokens": row[3], "redeemed": row[4]}
-                    for row in c.fetchall()]
-    conn.close()
-    return render_template("customer.html", unique_id=unique_id, summary=summary, transactions=transactions)
-
-@app.route("/export")
-def export():
-    if not session.get("role"):
-        return redirect(url_for("login"))
-    conn = sqlite3.connect(DB_NAME)
-    df = pd.read_sql_query("SELECT * FROM orders", conn)
-    conn.close()
-    if df.empty:
-        return "No data to export"
-    drink_pivot = df.pivot_table(index='unique_id', columns='drink_type', values='quantity', aggfunc='sum', fill_value=0)
-    summary = df.groupby(['unique_id','customer_name','phone_number']).agg(
-        total_orders=('quantity','sum'), tokens_earned=('tokens','sum'), redeemed=('redeemed','sum')
-    ).reset_index()
-    summary["balance"] = summary["tokens_earned"] - summary["redeemed"]
-    combined = summary.merge(drink_pivot, on='unique_id', how='left').fillna(0)
-    output_file = "Bound Cafe Aggregated Export.xlsx"
-    combined.to_excel(output_file, index=False)
-    return send_file(output_file, as_attachment=True)
-
-@app.route("/qr")
-def qr():
-    url = "https://loyalty-card-app-v2.onrender.com"
-    img = qrcode.make(url)
-    buf = BytesIO()
-    img.save(buf)
-    buf.seek(0)
-    return send_file(buf, mimetype='image/png', download_name='CafeQR.png', as_attachment=False)
 
 if __name__ == "__main__":
     init_db()
