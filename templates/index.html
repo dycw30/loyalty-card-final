@@ -8,18 +8,18 @@
         input, select { padding: 6px; margin: 5px 0; width: 220px; }
         button { padding: 8px 16px; background: #4CAF50; color: white; border: none; cursor: pointer; }
         button:hover { background: #45a049; }
-        .msg { margin-top: 15px; color: #333; }
         table { border-collapse: collapse; width: 100%; margin-top: 20px; }
         th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
         th { background-color: #f2f2f2; }
-        a { display: block; margin-top: 20px; color: #555; }
+        a.export-link { float: right; margin-top: -40px; }
     </style>
 </head>
 <body>
-    <h1>Barista Order Dashboard</h1>
+    <h1>Barista Dashboard</h1>
+    <a href="{{ url_for('export') }}" class="export-link">Download Excel Report</a>
 
     {% if message %}
-        <p class="msg">{{ message }}</p>
+        <p style="color: green;">{{ message }}</p>
     {% endif %}
 
     <form method="post">
@@ -44,11 +44,11 @@
     </form>
 
     {% if summary %}
-        <h2>Summary for ID: {{ summary.unique_id }}</h2>
+        <h2>Summary for {{ summary.unique_id }}</h2>
         <p>Total Orders: {{ summary.total_orders }}</p>
         <p>Tokens Earned: {{ summary.tokens_earned }}</p>
         <p>Tokens Redeemed: {{ summary.redeemed }}</p>
-        <p>Token Balance: {{ summary.balance }}</p>
+        <p>Balance: {{ summary.balance }}</p>
 
         <h3>Recent Orders</h3>
         <table>
@@ -64,6 +64,20 @@
             {% endfor %}
         </table>
     {% endif %}
+
+    <h2>All Customers Summary</h2>
+    <table>
+        <tr><th>Unique ID</th><th>Total Orders</th><th>Tokens Earned</th><th>Redeemed</th><th>Balance</th></tr>
+        {% for row in all_summary %}
+            <tr>
+                <td>{{ row.unique_id }}</td>
+                <td>{{ row.total_orders }}</td>
+                <td>{{ row.tokens_earned }}</td>
+                <td>{{ row.redeemed }}</td>
+                <td>{{ row.balance }}</td>
+            </tr>
+        {% endfor %}
+    </table>
 
     <a href="{{ url_for('logout') }}">Logout</a>
 </body>
