@@ -2,38 +2,17 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Export Data | Loyalty App</title>
+    <title>Export Data</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-    <style>
-        .export-container {
-            max-width: 600px;
-            margin: 80px auto;
-            background: #fff;
-            padding: 30px;
-            border-radius: 8px;
-            text-align: center;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        .export-container h2 {
-            margin-bottom: 20px;
-        }
-        .export-container button {
-            margin-top: 20px;
-        }
-    </style>
 </head>
 <body>
-    <div class="export-container">
-        <h2>Export Loyalty Data</h2>
-        <form action="/export" method="get">
+    <div class="container">
+        <h1>📤 Export Customer Data</h1>
+        <p>Click the button below to export the full report in Excel format.</p>
+        <form action="{{ url_for('export') }}" method="get">
             <button type="submit">Download Excel Report</button>
         </form>
-        <form action="/generate_pdf" method="get">
-            <button type="submit">Generate PDF Summary</button>
-        </form>
-        <p style="margin-top: 30px;">
-            <a href="/">← Back to Dashboard</a>
-        </p>
+        <a href="{{ url_for('index') }}" class="button">← Back to Dashboard</a>
     </div>
 </body>
 </html>

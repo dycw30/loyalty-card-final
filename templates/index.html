@@ -1,109 +1,64 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
     <title>Barista Dashboard</title>
-    <link rel="stylesheet" href="/static/styles.css">
-    <script>
-        async function fetchCustomerNames() {
-            const id = document.getElementById('unique_id').value;
-            const response = await fetch('/lookup', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-                body: 'unique_id=' + encodeURIComponent(id)
-            });
-            const data = await response.json();
-
-            const dropdown = document.getElementById('name_dropdown');
-            const nameField = document.getElementById('custom_name');
-
-            dropdown.innerHTML = '';
-            if (data.names.length > 0) {
-                dropdown.style.display = 'block';
-                nameField.style.display = 'none';
-                const defaultOption = document.createElement('option');
-                defaultOption.value = '';
-                defaultOption.textContent = '-- Select Name --';
-                dropdown.appendChild(defaultOption);
-                data.names.forEach(name => {
-                    const option = document.createElement('option');
-                    option.value = name;
-                    option.textContent = name;
-                    dropdown.appendChild(option);
-                });
-            } else {
-                dropdown.style.display = 'none';
-                nameField.style.display = 'block';
-            }
-        }
-
-        function toggleNameInput() {
-            const dropdown = document.getElementById('name_dropdown');
-            const nameField = document.getElementById('custom_name');
-            if (dropdown.value === '') {
-                nameField.style.display = 'block';
-            } else {
-                nameField.style.display = 'none';
-                nameField.value = '';
-            }
-        }
-    </script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
-    <h1>☕ Barista Order Dashboard</h1>
+    <h2>☕ Barista Order Dashboard</h2>
+    {% if message %}
+    <p><strong>{{ message }}</strong></p>
+    {% endif %}
 
-    <form method="POST" action="/">
-        <label>Last 4-digit Unique ID:</label><br>
-        <input type="text" name="unique_id" id="unique_id" required oninput="fetchCustomerNames()" maxlength="4"><br><br>
-
-        <label>Customer Name:</label><br>
-        <select id="name_dropdown" name="customer_name" style="display:none;" onchange="toggleNameInput()"></select>
-        <input type="text" name="custom_name" id="custom_name" placeholder="Enter customer name" required><br><br>
-
-        <label>Phone (optional):</label><br>
-        <input type="text" name="phone" placeholder="e.g. 0123456789"><br><br>
-
-        <label>Drink Type:</label><br>
-        <select name="drink_type">
-            <option value="">N/A</option>
-            <option value="Latte">Latte</option>
-            <option value="Cappuccino">Cappuccino</option>
-            <option value="Mocha">Mocha</option>
-            <option value="Espresso">Espresso</option>
-        </select><br><br>
-
-        <label>Quantity:</label><br>
-        <input type="number" name="quantity" value="0" min="0"><br><br>
-
+    <form method="POST">
+        <input type="text" name="unique_id" placeholder="Last 4-digits of Phone" required list="idlist" oninput="filterDropdown()">
+        <datalist id="idlist">
+            {% for row in totals %}
+            <option value="{{ row[0] }}">{{ row[1] }}</option>
+            {% endfor %}
+        </datalist>
+        <input type="text" name="name" placeholder="Customer Name (Optional)">
+        <input type="text" name="phone" placeholder="Phone Number (Optional)">
+        <input type="number" name="quantity" placeholder="Today's Order" required>
+        <input type="number" name="redeemed" placeholder="Redeem Tokens" value="0" required>
+        <select name="drink">
+            {% for d in drinks %}
+            <option value="{{ d }}">{{ d }}</option>
+            {% endfor %}
+        </select>
         <button type="submit">Submit Order</button>
     </form>
 
-    {% if message %}
-        <p style="color:green;"><strong>{{ message }}</strong></p>
-    {% endif %}
+    <h3>Customer Summary</h3>
+    <table>
+        <tr>
+            <th>Customer</th>
+            <th>Unique ID</th>
+            <th>Orders</th>
+            <th>Tokens</th>
+            <th>Redeemed</th>
+            <th>Phone</th>
+            <th>QR</th>
+            <th>PDF</th>
+        </tr>
+        {% for row in totals %}
+        <tr>
+            <td>{{ row[1] }}</td>
+            <td>{{ row[0] }}</td>
+            <td>{{ row[2] }}</td>
+            <td>{{ row[3] }}</td>
+            <td>{{ row[4] }}</td>
+            <td>{{ row[5] }}</td>
+            <td><a href="/qr/{{ row[0] }}">QR</a></td>
+            <td><a href="/pdf/{{ row[0] }}">PDF</a></td>
+        </tr>
+        {% endfor %}
+    </table>
 
-    {% if customers %}
-        <h2>Customer Summary</h2>
-        <table border="1">
-            <tr>
-                <th>Customer Name</th>
-                <th>Unique ID</th>
-                <th>Total Orders</th>
-                <th>Token Earned</th>
-                <th>Token Redeemed</th>
-            </tr>
-            {% for cust in customers %}
-            <tr>
-                <td>{{ cust[0] }}</td>
-                <td>{{ cust[1] }}</td>
-                <td>{{ cust[2] }}</td>
-                <td>{{ cust[3] }}</td>
-                <td>{{ cust[4] }}</td>
-            </tr>
-            {% endfor %}
-        </table>
-    {% endif %}
-
-    <br><br>
-    <a href="/export"><button>📁 Export to Excel</button></a>
+    <br>
+    <a href="/export">📥 Export</a> |
+    <a href="/lookup">🔍 Lookup</a> |
+    <a href="/logout">🚪 Logout</a>
 </body>
 </html>

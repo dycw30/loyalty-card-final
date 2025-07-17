@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Customer Lookup</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Customer Lookup</h1>
+        <table>
+            <thead>
+                <tr>
+                    <th>Customer Name</th>
+                    <th>Unique ID</th>
+                    <th>Total Orders</th>
+                    <th>Tokens Earned</th>
+                    <th>Tokens Redeemed</th>
+                    <th>Phone</th>
+                    <th>QR</th>
+                    <th>PDF</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in customers %}
+                <tr>
+                    <td>{{ c[1] }}</td>
+                    <td>{{ c[0] }}</td>
+                    <td>{{ c[2] }}</td>
+                    <td>{{ c[3] }}</td>
+                    <td>{{ c[4] }}</td>
+                    <td>{{ c[5] }}</td>
+                    <td><a href="{{ url_for('generate_qr', unique_id=c[0]) }}">QR</a></td>
+                    <td><a href="{{ url_for('generate_pdf', unique_id=c[0]) }}">PDF</a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <a class="button" href="{{ url_for('index') }}">← Back to Dashboard</a>
+    </div>
+</body>
+</html>

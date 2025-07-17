@@ -10,8 +10,9 @@ import io
 app = Flask(__name__)
 app.secret_key = 'supersecretkey'
 DB_NAME = "orders.db"
+USERS_DB = "users.db"
 
-def init_db():
+def init_orders_db():
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     c.execute("""
@@ -28,20 +29,28 @@ def init_db():
         )
     """)
     c.execute("""
-        CREATE TABLE IF NOT EXISTS baristas (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE,
-            password TEXT
-        )
-    """)
-    c.execute("""
         CREATE TABLE IF NOT EXISTS drinks (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT UNIQUE
         )
     """)
-    c.execute("INSERT OR IGNORE INTO baristas (username, password) VALUES ('admin', 'coffee123')")
+    # Default drinks
     c.execute("INSERT OR IGNORE INTO drinks (name) VALUES ('Latte'), ('Espresso'), ('Cappuccino'), ('Mocha')")
+    conn.commit()
+    conn.close()
+
+def init_users_db():
+    conn = sqlite3.connect(USERS_DB)
+    c = conn.cursor()
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            username TEXT PRIMARY KEY,
+            password TEXT
+        )
+    """)
+    # Default admin user
+    c.execute("INSERT OR IGNORE INTO users (username, password) VALUES ('admin', 'adminpass')")
+    c.execute("INSERT OR IGNORE INTO users (username, password) VALUES ('barista1', 'coffee123')")
     conn.commit()
     conn.close()
 
@@ -49,17 +58,21 @@ def init_db():
 def login():
     error = None
     if request.method == "POST":
-        username = request.form["username"]
-        password = request.form["password"]
-        conn = sqlite3.connect("users.db")
+        username = request.form["username"].strip()
+        password = request.form["password"].strip()
+
+        conn = sqlite3.connect(USERS_DB)
         c = conn.cursor()
         c.execute("SELECT * FROM users WHERE username=? AND password=?", (username, password))
         user = c.fetchone()
         conn.close()
+
         if user:
             session["username"] = username
-            session["logged_in"] = True
-            return redirect("/")
+            if username == "admin":
+                return redirect("/admin")
+            else:
+                return redirect("/")
         else:
             error = "Invalid credentials"
     return render_template("login.html", error=error)
@@ -71,30 +84,25 @@ def logout():
 
 @app.route("/", methods=["GET", "POST"])
 def index():
-    if not session.get("logged_in"):
+    if "username" not in session or session["username"] == "admin":
         return redirect(url_for("login"))
+
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     c.execute("SELECT name FROM drinks")
     drinks_list = [row[0] for row in c.fetchall()]
+    totals = []
     message = ""
 
     if request.method == "POST":
         unique_id = request.form.get("unique_id", "").strip()
-        try:
-            quantity = int(request.form.get("quantity", "0").strip() or 0)
-        except:
-            quantity = 0
-        try:
-            redeemed = int(request.form.get("redeemed", "0").strip() or 0)
-        except:
-            redeemed = 0
+        quantity = int(request.form.get("quantity", "0").strip() or 0)
+        redeemed = int(request.form.get("redeemed", "0").strip() or 0)
         drink_type = request.form.get("drink", "").strip()
         if drink_type == "N/A":
             drink_type = ""
         name = request.form.get("name", "").strip()
         phone = request.form.get("phone", "").strip()
-
         tokens = quantity // 9
         date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -118,16 +126,62 @@ def index():
     conn.close()
     return render_template("index.html", totals=totals, drinks=drinks_list, message=message)
 
+@app.route("/admin", methods=["GET", "POST"])
+def admin():
+    if "username" not in session or session["username"] != "admin":
+        return redirect(url_for("login"))
+
+    conn_orders = sqlite3.connect(DB_NAME)
+    conn_users = sqlite3.connect(USERS_DB)
+    c_orders = conn_orders.cursor()
+    c_users = conn_users.cursor()
+
+    if request.method == "POST":
+        action = request.form.get("action")
+
+        if action == "add_barista":
+            user = request.form.get("new_barista", "").strip()
+            pwd = request.form.get("new_password", "").strip()
+            if user and pwd:
+                c_users.execute("INSERT OR IGNORE INTO users (username, password) VALUES (?, ?)", (user, pwd))
+                conn_users.commit()
+
+        if action == "add_drink":
+            drink = request.form.get("new_drink", "").strip()
+            if drink:
+                c_orders.execute("INSERT OR IGNORE INTO drinks (name) VALUES (?)", (drink,))
+                conn_orders.commit()
+
+        if "delete_user" in request.form:
+            user = request.form.get("delete_user")
+            if user != "admin":
+                c_users.execute("DELETE FROM users WHERE username=?", (user,))
+                conn_users.commit()
+
+        if "delete_drink" in request.form:
+            drink = request.form.get("delete_drink")
+            c_orders.execute("DELETE FROM drinks WHERE name=?", (drink,))
+            conn_orders.commit()
+
+    c_users.execute("SELECT username FROM users")
+    baristas = [row[0] for row in c_users.fetchall()]
+    c_orders.execute("SELECT name FROM drinks")
+    drinks = [row[0] for row in c_orders.fetchall()]
+
+    conn_orders.close()
+    conn_users.close()
+
+    return render_template("admin.html", baristas=baristas, drinks=drinks)
+
 @app.route("/export")
 def export():
-    if not session.get("logged_in"):
+    if "username" not in session:
         return redirect(url_for("login"))
     conn = sqlite3.connect(DB_NAME)
     df = pd.read_sql_query("""
         SELECT unique_id AS 'Unique ID', MAX(customer_name) AS 'Customer Name', SUM(quantity) AS 'Total Orders',
                SUM(tokens) AS 'Tokens Earned', SUM(redeemed) AS 'Tokens Redeemed', MAX(phone) AS 'Phone'
-        FROM orders
-        GROUP BY unique_id
+        FROM orders GROUP BY unique_id
     """, conn)
     conn.close()
     file_name = "Bound Cafe Aggregated Export.xlsx"
@@ -166,31 +220,9 @@ def generate_qr(unique_id):
     buffer.seek(0)
     return send_file(buffer, mimetype="image/png", as_attachment=True, download_name=f"{unique_id}_qr.png")
 
-@app.route("/admin", methods=["GET", "POST"])
-def admin():
-    if not session.get("logged_in") or session.get("username") != "admin":
-        return redirect(url_for("login"))
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    if request.method == "POST":
-        if "new_barista" in request.form:
-            user = request.form["new_barista"].strip()
-            pwd = request.form["new_password"].strip()
-            c.execute("INSERT OR IGNORE INTO baristas (username, password) VALUES (?, ?)", (user, pwd))
-        if "new_drink" in request.form:
-            drink = request.form["new_drink"].strip()
-            c.execute("INSERT OR IGNORE INTO drinks (name) VALUES (?)", (drink,))
-        conn.commit()
-    c.execute("SELECT username FROM baristas")
-    baristas = [row[0] for row in c.fetchall()]
-    c.execute("SELECT name FROM drinks")
-    drinks = [row[0] for row in c.fetchall()]
-    conn.close()
-    return render_template("admin.html", baristas=baristas, drinks=drinks)
-
 @app.route("/lookup")
 def lookup():
-    if not session.get("logged_in"):
+    if "username" not in session:
         return redirect(url_for("login"))
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
@@ -203,5 +235,6 @@ def lookup():
     return render_template("lookup.html", customers=customers)
 
 if __name__ == "__main__":
-    init_db()
+    init_orders_db()
+    init_users_db()
     app.run(host="0.0.0.0", port=5000)
