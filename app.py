@@ -40,7 +40,6 @@ def init_db():
             name TEXT UNIQUE
         )
     """)
-    # default admin and drinks
     c.execute("INSERT OR IGNORE INTO baristas (username, password) VALUES ('admin', 'coffee123')")
     c.execute("INSERT OR IGNORE INTO drinks (name) VALUES ('Latte'), ('Espresso'), ('Cappuccino'), ('Mocha')")
     conn.commit()
@@ -48,21 +47,22 @@ def init_db():
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
+    error = None
     if request.method == "POST":
         username = request.form["username"]
         password = request.form["password"]
-        conn = sqlite3.connect(DB_NAME)
+        conn = sqlite3.connect("users.db")
         c = conn.cursor()
-        c.execute("SELECT * FROM baristas WHERE username=? AND password=?", (username, password))
+        c.execute("SELECT * FROM users WHERE username=? AND password=?", (username, password))
         user = c.fetchone()
         conn.close()
         if user:
-            session["logged_in"] = True
             session["username"] = username
-            return redirect(url_for("index"))
+            session["logged_in"] = True
+            return redirect("/")
         else:
-            return render_template("login.html", error="Invalid credentials")
-    return render_template("login.html")
+            error = "Invalid credentials"
+    return render_template("login.html", error=error)
 
 @app.route("/logout")
 def logout():
@@ -77,7 +77,6 @@ def index():
     c = conn.cursor()
     c.execute("SELECT name FROM drinks")
     drinks_list = [row[0] for row in c.fetchall()]
-    totals = []
     message = ""
 
     if request.method == "POST":
