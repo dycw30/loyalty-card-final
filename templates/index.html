@@ -9,15 +9,13 @@
   <div class="container">
     <h1>Barista Order Dashboard</h1>
 
-    {% if message %}
-      <p class="message">{{ message }}</p>
-    {% endif %}
+    {% if message %}<p class="message">{{ message }}</p>{% endif %}
 
     <form method="POST">
       <label for="unique_id">Enter Unique ID (last 4 digits):</label>
       <input type="text" id="unique_id" name="unique_id" value="{{ request.form.unique_id or '' }}" required oninput="this.form.submit()" />
 
-      {% if name_options and request.form.unique_id %}
+      {% if name_options %}
         <label for="name">Select Customer Name:</label>
         <select id="name" name="name" required>
           <option value="">--Choose--</option>
