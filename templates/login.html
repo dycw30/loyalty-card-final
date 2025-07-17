@@ -2,18 +2,22 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Login</title>
+    <title>Login - Bound Cafe</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
     <div class="container">
-        <h1>Loyalty Card Login</h1>
+        <h1>🔐 Login</h1>
         {% if error %}
-            <p class="error">{{ error }}</p>
+            <div class="message" style="background-color: #b71c1c;">{{ error }}</div>
         {% endif %}
         <form method="POST">
-            <input type="text" name="username" placeholder="Username" required><br>
-            <input type="password" name="password" placeholder="Password" required><br>
+            <label for="username">Username:</label>
+            <input type="text" name="username" required>
+
+            <label for="password">Password:</label>
+            <input type="password" name="password" required>
+
             <button type="submit">Login</button>
         </form>
     </div>

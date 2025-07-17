@@ -1,54 +1,115 @@
-<!-- templates/index.html -->
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Barista Order Dashboard</title>
-  <link rel="stylesheet" href="/static/styles.css">
+    <meta charset="UTF-8">
+    <title>Barista Order Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
-  <h1>☕ Barista Order Dashboard</h1>
-  <form method="post">
-    <label>Unique ID:</label>
-    <input name="unique_id" value="{{ unique_id }}" required><br>
+    <div class="container">
+        <h1>☕ Barista Order Dashboard</h1>
+        <form method="POST">
+            <label>Unique ID (last 4 of phone):</label>
+            <input type="text" name="unique_id" id="unique_id" value="{{ request.form.unique_id or '' }}" required oninput="filterNames()">
 
-    {% if matching_names %}
-    <label>Select Customer Name:</label>
-    <select name="name" required>
-      {% for name in matching_names %}
-      <option value="{{ name }}">{{ name }}</option>
-      {% endfor %}
-    </select>
-    {% else %}
-    <label>Customer Name:</label>
-    <input name="name" required><br>
-    {% endif %}
+            <label>Customer Name:</label>
+            <select name="name" id="name">
+                {% if names %}
+                    {% for n in names %}
+                        <option value="{{ n }}">{{ n }}</option>
+                    {% endfor %}
+                {% else %}
+                    <option value="">Select or type manually</option>
+                {% endif %}
+            </select>
 
-    <label>Phone:</label>
-    <input name="phone"><br>
-    <label>Drink Type:</label>
-    <select name="drink">
-      {% for drink in drinks %}
-      <option value="{{ drink }}">{{ drink }}</option>
-      {% endfor %}
-    </select><br>
-    <label>Today's Order Qty:</label>
-    <input type="number" name="quantity" value="0"><br>
-    <label>Tokens Redeemed:</label>
-    <input type="number" name="redeemed" value="0"><br>
-    <button type="submit">Submit Order</button>
-  </form>
+            <label>Phone (optional):</label>
+            <input type="text" name="phone">
 
-  {% if summary %}
-  <div class="summary">
-    <h3>📊 Customer Summary</h3>
-    <p>Total Orders: {{ summary.orders }}</p>
-    <p>Tokens Earned: {{ summary.earned }}</p>
-    <p>Tokens Redeemed: {{ summary.redeemed }}</p>
-    <p><strong>Balance: {{ summary.balance }}</strong></p>
-  </div>
-  {% endif %}
+            <label>Drink:</label>
+            <select name="drink">
+                {% for d in drinks %}
+                    <option value="{{ d }}">{{ d }}</option>
+                {% endfor %}
+            </select>
 
-  <p style="color: green;">{{ message }}</p>
-  <a href="/logout">Logout</a>
+            <label>Today's Order Quantity:</label>
+            <input type="number" name="quantity" min="0">
+
+            <label>Redeem Tokens:</label>
+            <input type="number" name="redeemed" min="0">
+
+            <button type="submit">Submit Order</button>
+        </form>
+
+        {% if message %}
+            <p class="message">{{ message }}</p>
+        {% endif %}
+
+        {% if summary %}
+        <div class="summary-panel">
+            <h3>Summary for {{ summary.customer_name }} (ID: {{ summary.unique_id }})</h3>
+            <p>Total Orders: {{ summary.total_orders }}</p>
+            <p>Tokens Earned: {{ summary.tokens }}</p>
+            <p>Tokens Redeemed: {{ summary.redeemed }}</p>
+            <p><strong>Token Balance: {{ summary.tokens - summary.redeemed }}</strong></p>
+        </div>
+        {% endif %}
+
+        <h2>📊 Customer Totals</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Unique ID</th>
+                    <th>Name</th>
+                    <th>Total Orders</th>
+                    <th>Tokens</th>
+                    <th>Redeemed</th>
+                    <th>Balance</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in totals %}
+                <tr>
+                    <td>{{ row[0] }}</td>
+                    <td>{{ row[1] }}</td>
+                    <td>{{ row[2] }}</td>
+                    <td>{{ row[3] }}</td>
+                    <td>{{ row[4] }}</td>
+                    <td>{{ row[3] - row[4] }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="nav-links">
+            <a href="/logout">🚪 Logout</a> |
+            <a href="/lookup">🔍 Customer Lookup</a> |
+            <a href="/export">⬇️ Export Excel</a>
+        </div>
+    </div>
+
+    <script>
+        const nameMap = {{ name_map | safe }};
+        function filterNames() {
+            const uid = document.getElementById("unique_id").value;
+            const dropdown = document.getElementById("name");
+            dropdown.innerHTML = "";
+
+            if (uid in nameMap) {
+                nameMap[uid].forEach(n => {
+                    const option = document.createElement("option");
+                    option.value = n;
+                    option.text = n;
+                    dropdown.add(option);
+                });
+            } else {
+                const defaultOption = document.createElement("option");
+                defaultOption.text = "Select or type manually";
+                defaultOption.value = "";
+                dropdown.add(defaultOption);
+            }
+        }
+    </script>
 </body>
 </html>

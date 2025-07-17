@@ -7,12 +7,12 @@
 </head>
 <body>
     <div class="container">
-        <h1>📤 Export Customer Data</h1>
-        <p>Click the button below to export the full report in Excel format.</p>
-        <form action="{{ url_for('export') }}" method="get">
-            <button type="submit">Download Excel Report</button>
+        <h1>📤 Export Orders Summary</h1>
+        <p>Click the button below to download the full aggregated Excel file.</p>
+        <form action="/export">
+            <button type="submit">Download Excel</button>
         </form>
-        <a href="{{ url_for('index') }}" class="button">← Back to Dashboard</a>
+        <p><a href="/">← Back to Dashboard</a></p>
     </div>
 </body>
 </html>

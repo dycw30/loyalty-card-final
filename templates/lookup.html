@@ -6,33 +6,35 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
-    <h1>🔎 Customer Lookup</h1>
-    <a href="{{ url_for('logout') }}">Logout</a> |
-    <a href="{{ url_for('admin') }}">Admin</a>
-
-    <table>
-        <thead>
-            <tr>
-                <th>Customer Name</th>
-                <th>Unique ID</th>
-                <th>Total Orders</th>
-                <th>Tokens Earned</th>
-                <th>Tokens Redeemed</th>
-                <th>Phone</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for row in customers %}
-            <tr>
-                <td>{{ row["Customer Name"] }}</td>
-                <td>{{ row["Unique ID"] }}</td>
-                <td>{{ row["Total Orders"] }}</td>
-                <td>{{ row["Tokens Earned"] }}</td>
-                <td>{{ row["Tokens Redeemed"] }}</td>
-                <td>{{ row["Phone"] }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <div class="container">
+        <h1>🔍 Customer Lookup</h1>
+        <a href="/">← Back to Dashboard</a>
+        <table>
+            <thead>
+                <tr>
+                    <th>Customer Name</th>
+                    <th>Unique ID</th>
+                    <th>Total Orders</th>
+                    <th>Tokens Earned</th>
+                    <th>Tokens Redeemed</th>
+                    <th>Balance</th>
+                    <th>Phone</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for customer in customers %}
+                <tr>
+                    <td>{{ customer['Customer Name'] }}</td>
+                    <td>{{ customer['Unique ID'] }}</td>
+                    <td>{{ customer['Total Orders'] }}</td>
+                    <td>{{ customer['Tokens Earned'] }}</td>
+                    <td>{{ customer['Tokens Redeemed'] }}</td>
+                    <td>{{ customer['Tokens Earned'] - customer['Tokens Redeemed'] }}</td>
+                    <td>{{ customer['Phone'] or '' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </body>
 </html>
