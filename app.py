@@ -1,11 +1,8 @@
-from flask import Flask, render_template, request, redirect, session, url_for, send_file
+# [app.py]
+from flask import Flask, render_template, request, redirect, session, url_for, send_file, jsonify
 import sqlite3
 from datetime import datetime
 import pandas as pd
-from reportlab.pdfgen import canvas
-from reportlab.lib.pagesizes import A4
-import qrcode
-import io
 import os
 
 app = Flask(__name__)
@@ -74,10 +71,11 @@ def index():
     c.execute("SELECT name FROM drinks")
     drinks_list = [row[0] for row in c.fetchall()]
     message = ""
-    totals = []
+    summary = None
+    matching_names = []
 
     if request.method == "POST":
-        unique_id = request.form.get("unique_id", "").strip()
+        unique_id = request.form.get("unique_id", "").zfill(4)  # Retain leading zeros
         name = request.form.get("name", "").strip()
         phone = request.form.get("phone", "").strip()
         drink = request.form.get("drink", "")
@@ -94,7 +92,7 @@ def index():
         c.execute("SELECT SUM(tokens) - SUM(redeemed) FROM orders WHERE unique_id=?", (unique_id,))
         balance = c.fetchone()[0] or 0
         if redeemed > balance:
-            message = f"❌ Not enough tokens to redeem. Current balance: {balance}"
+            message = f"❌ Not enough tokens. Current balance: {balance}"
         else:
             now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             c.execute("""
@@ -104,94 +102,38 @@ def index():
             conn.commit()
             message = "✅ Order submitted."
 
-    c.execute("""
-        SELECT unique_id, MAX(customer_name), SUM(quantity), SUM(tokens), SUM(redeemed), MAX(phone)
-        FROM orders GROUP BY unique_id
-    """)
-    totals = c.fetchall()
+    # Check for summary and matching names if unique_id entered
+    unique_id = request.args.get("unique_id", "")
+    if unique_id:
+        unique_id = unique_id.zfill(4)
+        c.execute("""
+            SELECT customer_name FROM orders WHERE unique_id=? GROUP BY customer_name
+        """, (unique_id,))
+        matching_names = [row[0] for row in c.fetchall()]
+
+        c.execute("""
+            SELECT SUM(quantity), SUM(tokens), SUM(redeemed) FROM orders WHERE unique_id=?
+        """, (unique_id,))
+        row = c.fetchone()
+        if row and any(row):
+            total_orders = row[0] or 0
+            tokens_earned = row[1] or 0
+            tokens_redeemed = row[2] or 0
+            summary = {
+                "orders": total_orders,
+                "earned": tokens_earned,
+                "redeemed": tokens_redeemed,
+                "balance": tokens_earned - tokens_redeemed
+            }
+
     conn.close()
-    return render_template("index.html", drinks=drinks_list, totals=totals, message=message)
-
-@app.route("/admin", methods=["GET", "POST"])
-def admin():
-    if not session.get("logged_in") or session.get("username") != "admin":
-        return redirect("/login")
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    if request.method == "POST":
-        if "new_user" in request.form:
-            new_user = request.form["new_user"].strip()
-            new_pass = request.form["new_pass"].strip()
-            conn_u = sqlite3.connect(USERS_DB)
-            cu = conn_u.cursor()
-            cu.execute("INSERT OR IGNORE INTO users (username, password) VALUES (?, ?)", (new_user, new_pass))
-            conn_u.commit()
-            conn_u.close()
-        elif "new_drink" in request.form:
-            new_drink = request.form["new_drink"].strip()
-            c.execute("INSERT OR IGNORE INTO drinks (name) VALUES (?)", (new_drink,))
-            conn.commit()
-    # Load users
-    conn_u = sqlite3.connect(USERS_DB)
-    cu = conn_u.cursor()
-    cu.execute("SELECT username FROM users")
-    users = [row[0] for row in cu.fetchall()]
-    conn_u.close()
-
-    # Load drinks
-    c.execute("SELECT name FROM drinks")
-    drinks = [row[0] for row in c.fetchall()]
-    conn.close()
-    return render_template("admin.html", users=users, drinks=drinks)
-
-@app.route("/delete_user/<username>")
-def delete_user(username):
-    if username != "admin":
-        conn = sqlite3.connect(USERS_DB)
-        c = conn.cursor()
-        c.execute("DELETE FROM users WHERE username=?", (username,))
-        conn.commit()
-        conn.close()
-    return redirect("/admin")
-
-@app.route("/delete_drink/<drink>")
-def delete_drink(drink):
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute("DELETE FROM drinks WHERE name=?", (drink,))
-    conn.commit()
-    conn.close()
-    return redirect("/admin")
-
-@app.route("/lookup")
-def lookup():
-    if not session.get("logged_in"):
-        return redirect("/login")
-    conn = sqlite3.connect(DB_NAME)
-    df = pd.read_sql_query("""
-        SELECT unique_id AS 'Unique ID', MAX(customer_name) AS 'Customer Name', SUM(quantity) AS 'Total Orders',
-               SUM(tokens) AS 'Tokens Earned', SUM(redeemed) AS 'Tokens Redeemed', MAX(phone) AS 'Phone'
-        FROM orders
-        GROUP BY unique_id
-    """, conn)
-    conn.close()
-    return render_template("lookup.html", customers=df.to_records(index=False))
-
-@app.route("/export")
-def export():
-    if not session.get("logged_in"):
-        return redirect("/login")
-    conn = sqlite3.connect(DB_NAME)
-    df = pd.read_sql_query("""
-        SELECT unique_id AS 'Unique ID', MAX(customer_name) AS 'Customer Name', SUM(quantity) AS 'Total Orders',
-               SUM(tokens) AS 'Tokens Earned', SUM(redeemed) AS 'Tokens Redeemed', MAX(phone) AS 'Phone'
-        FROM orders GROUP BY unique_id
-    """, conn)
-    conn.close()
-    filename = "Bound_Cafe_Export.xlsx"
-    df.to_excel(filename, index=False)
-    return send_file(filename, as_attachment=True)
+    return render_template("index.html",
+                           drinks=drinks_list,
+                           message=message,
+                           summary=summary,
+                           unique_id=unique_id,
+                           matching_names=matching_names)
 
 if __name__ == "__main__":
     init_db()
-    app.run(host="0.0.0.0", port=5000)
+    app.run(debug=True)

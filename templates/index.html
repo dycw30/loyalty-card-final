@@ -1,64 +1,54 @@
+<!-- templates/index.html -->
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <title>Barista Dashboard</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+  <title>Barista Order Dashboard</title>
+  <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
-    <h2>☕ Barista Order Dashboard</h2>
-    {% if message %}
-    <p><strong>{{ message }}</strong></p>
+  <h1>☕ Barista Order Dashboard</h1>
+  <form method="post">
+    <label>Unique ID:</label>
+    <input name="unique_id" value="{{ unique_id }}" required><br>
+
+    {% if matching_names %}
+    <label>Select Customer Name:</label>
+    <select name="name" required>
+      {% for name in matching_names %}
+      <option value="{{ name }}">{{ name }}</option>
+      {% endfor %}
+    </select>
+    {% else %}
+    <label>Customer Name:</label>
+    <input name="name" required><br>
     {% endif %}
 
-    <form method="POST">
-        <input type="text" name="unique_id" placeholder="Last 4-digits of Phone" required list="idlist" oninput="filterDropdown()">
-        <datalist id="idlist">
-            {% for row in totals %}
-            <option value="{{ row[0] }}">{{ row[1] }}</option>
-            {% endfor %}
-        </datalist>
-        <input type="text" name="name" placeholder="Customer Name (Optional)">
-        <input type="text" name="phone" placeholder="Phone Number (Optional)">
-        <input type="number" name="quantity" placeholder="Today's Order" required>
-        <input type="number" name="redeemed" placeholder="Redeem Tokens" value="0" required>
-        <select name="drink">
-            {% for d in drinks %}
-            <option value="{{ d }}">{{ d }}</option>
-            {% endfor %}
-        </select>
-        <button type="submit">Submit Order</button>
-    </form>
+    <label>Phone:</label>
+    <input name="phone"><br>
+    <label>Drink Type:</label>
+    <select name="drink">
+      {% for drink in drinks %}
+      <option value="{{ drink }}">{{ drink }}</option>
+      {% endfor %}
+    </select><br>
+    <label>Today's Order Qty:</label>
+    <input type="number" name="quantity" value="0"><br>
+    <label>Tokens Redeemed:</label>
+    <input type="number" name="redeemed" value="0"><br>
+    <button type="submit">Submit Order</button>
+  </form>
 
-    <h3>Customer Summary</h3>
-    <table>
-        <tr>
-            <th>Customer</th>
-            <th>Unique ID</th>
-            <th>Orders</th>
-            <th>Tokens</th>
-            <th>Redeemed</th>
-            <th>Phone</th>
-            <th>QR</th>
-            <th>PDF</th>
-        </tr>
-        {% for row in totals %}
-        <tr>
-            <td>{{ row[1] }}</td>
-            <td>{{ row[0] }}</td>
-            <td>{{ row[2] }}</td>
-            <td>{{ row[3] }}</td>
-            <td>{{ row[4] }}</td>
-            <td>{{ row[5] }}</td>
-            <td><a href="/qr/{{ row[0] }}">QR</a></td>
-            <td><a href="/pdf/{{ row[0] }}">PDF</a></td>
-        </tr>
-        {% endfor %}
-    </table>
+  {% if summary %}
+  <div class="summary">
+    <h3>📊 Customer Summary</h3>
+    <p>Total Orders: {{ summary.orders }}</p>
+    <p>Tokens Earned: {{ summary.earned }}</p>
+    <p>Tokens Redeemed: {{ summary.redeemed }}</p>
+    <p><strong>Balance: {{ summary.balance }}</strong></p>
+  </div>
+  {% endif %}
 
-    <br>
-    <a href="/export">📥 Export</a> |
-    <a href="/lookup">🔍 Lookup</a> |
-    <a href="/logout">🚪 Logout</a>
+  <p style="color: green;">{{ message }}</p>
+  <a href="/logout">Logout</a>
 </body>
 </html>
