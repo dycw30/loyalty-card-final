@@ -1,115 +1,94 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Barista Order Dashboard</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+  <meta charset="UTF-8" />
+  <title>Barista Order Dashboard</title>
+  <link rel="stylesheet" href="/static/styles.css" />
 </head>
 <body>
-    <div class="container">
-        <h1>☕ Barista Order Dashboard</h1>
-        <form method="POST">
-            <label>Unique ID (last 4 of phone):</label>
-            <input type="text" name="unique_id" id="unique_id" value="{{ request.form.unique_id or '' }}" required oninput="filterNames()">
+  <div class="container">
+    <h1>Barista Order Dashboard</h1>
 
-            <label>Customer Name:</label>
-            <select name="name" id="name">
-                {% if names %}
-                    {% for n in names %}
-                        <option value="{{ n }}">{{ n }}</option>
-                    {% endfor %}
-                {% else %}
-                    <option value="">Select or type manually</option>
-                {% endif %}
-            </select>
+    {% if message %}<p class="message">{{ message }}</p>{% endif %}
 
-            <label>Phone (optional):</label>
-            <input type="text" name="phone">
+    <form method="POST">
+      <label for="unique_id">Enter Unique ID (last 4 digits):</label>
+      <input type="text" id="unique_id" name="unique_id" value="{{ request.form.unique_id or '' }}" required oninput="this.form.submit()" />
 
-            <label>Drink:</label>
-            <select name="drink">
-                {% for d in drinks %}
-                    <option value="{{ d }}">{{ d }}</option>
-                {% endfor %}
-            </select>
+      {% if name_options %}
+        <label for="name">Select Customer Name:</label>
+        <select id="name" name="name" required>
+          <option value="">--Choose--</option>
+          {% for name in name_options %}
+            <option value="{{ name }}" {% if request.form.name == name %}selected{% endif %}>{{ name }}</option>
+          {% endfor %}
+        </select>
+      {% else %}
+        <label for="name">Customer Name:</label>
+        <input type="text" name="name" value="{{ request.form.name or '' }}" required />
+      {% endif %}
 
-            <label>Today's Order Quantity:</label>
-            <input type="number" name="quantity" min="0">
+      <label for="phone">Phone (Optional):</label>
+      <input type="text" name="phone" value="{{ request.form.phone or '' }}" />
 
-            <label>Redeem Tokens:</label>
-            <input type="number" name="redeemed" min="0">
+      <label for="drink">Drink Type:</label>
+      <select id="drink" name="drink">
+        {% for drink in drinks %}
+          <option value="{{ drink }}" {% if request.form.drink == drink %}selected{% endif %}>{{ drink }}</option>
+        {% endfor %}
+      </select>
 
-            <button type="submit">Submit Order</button>
-        </form>
+      <label for="quantity">Today's Order (Qty):</label>
+      <input type="number" id="quantity" name="quantity" min="0" required value="{{ request.form.quantity or 0 }}" />
 
-        {% if message %}
-            <p class="message">{{ message }}</p>
-        {% endif %}
+      <label for="redeemed">Tokens to Redeem:</label>
+      <input type="number" id="redeemed" name="redeemed" min="0" value="{{ request.form.redeemed or 0 }}" />
 
-        {% if summary %}
-        <div class="summary-panel">
-            <h3>Summary for {{ summary.customer_name }} (ID: {{ summary.unique_id }})</h3>
-            <p>Total Orders: {{ summary.total_orders }}</p>
-            <p>Tokens Earned: {{ summary.tokens }}</p>
-            <p>Tokens Redeemed: {{ summary.redeemed }}</p>
-            <p><strong>Token Balance: {{ summary.tokens - summary.redeemed }}</strong></p>
-        </div>
-        {% endif %}
+      <button type="submit">Submit Order</button>
+    </form>
 
-        <h2>📊 Customer Totals</h2>
-        <table>
-            <thead>
-                <tr>
-                    <th>Unique ID</th>
-                    <th>Name</th>
-                    <th>Total Orders</th>
-                    <th>Tokens</th>
-                    <th>Redeemed</th>
-                    <th>Balance</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for row in totals %}
-                <tr>
-                    <td>{{ row[0] }}</td>
-                    <td>{{ row[1] }}</td>
-                    <td>{{ row[2] }}</td>
-                    <td>{{ row[3] }}</td>
-                    <td>{{ row[4] }}</td>
-                    <td>{{ row[3] - row[4] }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+    {% if summary %}
+      <div class="summary-panel">
+        <h3>Customer Summary</h3>
+        <p><strong>Total Orders:</strong> {{ summary.total_orders }}</p>
+        <p><strong>Tokens Earned:</strong> {{ summary.tokens_earned }}</p>
+        <p><strong>Tokens Redeemed:</strong> {{ summary.tokens_redeemed }}</p>
+        <p><strong>Balance:</strong> {{ summary.balance }}</p>
+      </div>
+    {% endif %}
 
-        <div class="nav-links">
-            <a href="/logout">🚪 Logout</a> |
-            <a href="/lookup">🔍 Customer Lookup</a> |
-            <a href="/export">⬇️ Export Excel</a>
-        </div>
+    <h2>Customer Order Totals</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Unique ID</th>
+          <th>Customer Name</th>
+          <th>Total Orders</th>
+          <th>Tokens Earned</th>
+          <th>Tokens Redeemed</th>
+          <th>Balance</th>
+          <th>Phone</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in totals %}
+        <tr>
+          <td>{{ row[0] }}</td>
+          <td>{{ row[1] }}</td>
+          <td>{{ row[2] }}</td>
+          <td>{{ row[3] }}</td>
+          <td>{{ row[4] }}</td>
+          <td>{{ row[3] - row[4] }}</td>
+          <td>{{ row[5] }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <div class="links">
+      <a href="/export">Export to Excel</a>
+      <a href="/logout">Logout</a>
     </div>
-
-    <script>
-        const nameMap = {{ name_map | safe }};
-        function filterNames() {
-            const uid = document.getElementById("unique_id").value;
-            const dropdown = document.getElementById("name");
-            dropdown.innerHTML = "";
-
-            if (uid in nameMap) {
-                nameMap[uid].forEach(n => {
-                    const option = document.createElement("option");
-                    option.value = n;
-                    option.text = n;
-                    dropdown.add(option);
-                });
-            } else {
-                const defaultOption = document.createElement("option");
-                defaultOption.text = "Select or type manually";
-                defaultOption.value = "";
-                dropdown.add(defaultOption);
-            }
-        }
-    </script>
+  </div>
 </body>
 </html>

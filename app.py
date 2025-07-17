@@ -6,7 +6,6 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 import qrcode
 import io
-import os
 
 app = Flask(__name__)
 app.secret_key = 'supersecretkey'
@@ -67,15 +66,18 @@ def logout():
 def index():
     if not session.get("logged_in"):
         return redirect("/login")
+
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
+
     c.execute("SELECT name FROM drinks")
     drinks_list = [row[0] for row in c.fetchall()]
+
     message = ""
     totals = []
 
     if request.method == "POST":
-        unique_id = request.form.get("unique_id", "").zfill(4).strip()
+        unique_id = request.form.get("unique_id", "").zfill(4)
         name = request.form.get("name", "").strip()
         phone = request.form.get("phone", "").strip()
         drink = request.form.get("drink", "")
@@ -91,6 +93,7 @@ def index():
         tokens = qty // 9
         c.execute("SELECT SUM(tokens) - SUM(redeemed) FROM orders WHERE unique_id=?", (unique_id,))
         balance = c.fetchone()[0] or 0
+
         if redeemed > balance:
             message = f"❌ Not enough tokens to redeem. Current balance: {balance}"
         else:
@@ -103,45 +106,43 @@ def index():
             message = "✅ Order submitted."
 
     c.execute("""
-        SELECT unique_id, customer_name, SUM(quantity), SUM(tokens), SUM(redeemed), MAX(phone)
-        FROM orders GROUP BY unique_id, customer_name
+        SELECT unique_id, MAX(customer_name), SUM(quantity), SUM(tokens), SUM(redeemed), MAX(phone)
+        FROM orders GROUP BY unique_id
     """)
     totals = c.fetchall()
     conn.close()
+
     return render_template("index.html", drinks=drinks_list, totals=totals, message=message)
 
-@app.route("/lookup")
-def lookup():
-    if not session.get("logged_in"):
-        return redirect("/login")
+@app.route("/lookup_matches", methods=["GET"])
+def lookup_matches():
+    unique_id = request.args.get("unique_id", "").zfill(4)
     conn = sqlite3.connect(DB_NAME)
-    df = pd.read_sql_query("""
-        SELECT unique_id AS 'Unique ID', customer_name AS 'Customer Name', SUM(quantity) AS 'Total Orders',
-               SUM(tokens) AS 'Tokens Earned', SUM(redeemed) AS 'Tokens Redeemed', MAX(phone) AS 'Phone'
-        FROM orders GROUP BY unique_id, customer_name
-    """, conn)
+    c = conn.cursor()
+    c.execute("SELECT DISTINCT customer_name FROM orders WHERE unique_id=?", (unique_id,))
+    names = [row[0] for row in c.fetchall()]
+    c.execute("""
+        SELECT SUM(quantity), SUM(tokens), SUM(redeemed)
+        FROM orders WHERE unique_id=?
+    """, (unique_id,))
+    summary = c.fetchone()
     conn.close()
-    return render_template("lookup.html", customers=df.to_records(index=False))
 
-@app.route("/export")
-def export():
-    if not session.get("logged_in"):
-        return redirect("/login")
-    conn = sqlite3.connect(DB_NAME)
-    df = pd.read_sql_query("""
-        SELECT unique_id AS 'Unique ID', customer_name AS 'Customer Name', SUM(quantity) AS 'Total Orders',
-               SUM(tokens) AS 'Tokens Earned', SUM(redeemed) AS 'Tokens Redeemed', MAX(phone) AS 'Phone'
-        FROM orders GROUP BY unique_id, customer_name
-    """, conn)
-    conn.close()
-    filename = "Bound_Cafe_Export.xlsx"
-    df.to_excel(filename, index=False)
-    return send_file(filename, as_attachment=True)
+    return jsonify({
+        "names": names,
+        "summary": {
+            "orders": summary[0] or 0,
+            "tokens": summary[1] or 0,
+            "redeemed": summary[2] or 0,
+            "balance": (summary[1] or 0) - (summary[2] or 0)
+        }
+    })
 
 @app.route("/admin", methods=["GET", "POST"])
 def admin():
     if not session.get("logged_in") or session.get("username") != "admin":
         return redirect("/login")
+
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     if request.method == "POST":
@@ -167,6 +168,7 @@ def admin():
     c.execute("SELECT name FROM drinks")
     drinks = [row[0] for row in c.fetchall()]
     conn.close()
+
     return render_template("admin.html", users=users, drinks=drinks)
 
 @app.route("/delete_user/<username>")
@@ -188,20 +190,33 @@ def delete_drink(drink):
     conn.close()
     return redirect("/admin")
 
-@app.route("/fetch_summary", methods=["POST"])
-def fetch_summary():
-    data = request.json
-    unique_id = data.get("unique_id", "").zfill(4)
+@app.route("/lookup")
+def lookup():
+    if not session.get("logged_in"):
+        return redirect("/login")
     conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute("""
-        SELECT customer_name, SUM(quantity), SUM(tokens), SUM(redeemed)
-        FROM orders WHERE unique_id=?
-        GROUP BY customer_name
-    """, (unique_id,))
-    results = c.fetchall()
+    df = pd.read_sql_query("""
+        SELECT unique_id AS 'Unique ID', MAX(customer_name) AS 'Customer Name', SUM(quantity) AS 'Total Orders',
+               SUM(tokens) AS 'Tokens Earned', SUM(redeemed) AS 'Tokens Redeemed', MAX(phone) AS 'Phone'
+        FROM orders GROUP BY unique_id
+    """, conn)
     conn.close()
-    return jsonify(results)
+    return render_template("lookup.html", customers=df.to_records(index=False))
+
+@app.route("/export")
+def export():
+    if not session.get("logged_in"):
+        return redirect("/login")
+    conn = sqlite3.connect(DB_NAME)
+    df = pd.read_sql_query("""
+        SELECT unique_id AS 'Unique ID', MAX(customer_name) AS 'Customer Name', SUM(quantity) AS 'Total Orders',
+               SUM(tokens) AS 'Tokens Earned', SUM(redeemed) AS 'Tokens Redeemed', MAX(phone) AS 'Phone'
+        FROM orders GROUP BY unique_id
+    """, conn)
+    conn.close()
+    filename = "Bound_Cafe_Export.xlsx"
+    df.to_excel(filename, index=False)
+    return send_file(filename, as_attachment=True)
 
 if __name__ == "__main__":
     init_db()
