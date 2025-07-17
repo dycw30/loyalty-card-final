@@ -1,66 +1,85 @@
 body {
     font-family: Arial, sans-serif;
-    margin: 10px;
+    background-color: #f9f9f9;
+    margin: 0;
     padding: 0;
+}
+
+.container {
+    max-width: 500px;
+    margin: 40px auto;
+    background-color: #fff;
+    padding: 25px;
+    border-radius: 10px;
+    box-shadow: 0 0 12px rgba(0, 0, 0, 0.1);
+}
+
+h2, h3 {
+    text-align: center;
     color: #333;
 }
 
-h1, h3 {
-    color: #4e342e;
+form {
+    display: flex;
+    flex-direction: column;
 }
 
-.summary, .order-form, .top {
-    margin-bottom: 20px;
-    background: #f9f9f9;
+label {
+    margin: 8px 0 5px;
+    font-weight: bold;
+    color: #555;
+}
+
+input[type="text"],
+input[type="number"],
+input[type="password"],
+select {
+    padding: 10px;
+    margin-bottom: 15px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    font-size: 16px;
+    width: 100%;
+}
+
+button {
+    padding: 12px;
+    font-size: 16px;
+    background-color: #008cba;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    margin-top: 10px;
+}
+
+button:hover {
+    background-color: #005f73;
+}
+
+.summary {
+    margin-top: 30px;
+    background: #f0f0f0;
     padding: 15px;
     border-radius: 8px;
 }
 
-form input[type="text"],
-form input[type="number"],
-form input[type="password"],
-form select {
-    width: 100%;
-    padding: 8px;
-    margin-top: 5px;
-    margin-bottom: 15px;
-    box-sizing: border-box;
-    border: 1px solid #ccc;
-    border-radius: 4px;
+.summary h4 {
+    margin-top: 0;
+    color: #444;
 }
 
-button {
-    background: #795548;
-    color: white;
-    border: none;
-    padding: 10px 20px;
-    border-radius: 5px;
-    cursor: pointer;
-    width: 100%;
-}
-
-button:hover {
-    background: #5d4037;
-}
-
-ul {
-    padding-left: 20px;
-}
-
-.error {
-    color: red;
-    font-weight: bold;
-}
-
-/* Mobile specific tweaks */
 @media (max-width: 600px) {
-    body {
-        margin: 5px;
+    .container {
+        margin: 20px;
+        padding: 15px;
     }
-    h1, h3 {
-        font-size: 1.2em;
+
+    h2, h3 {
+        font-size: 20px;
     }
+
     button {
-        padding: 12px;
+        font-size: 14px;
     }
 }

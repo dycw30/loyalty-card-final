@@ -1,108 +1,109 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Loyalty Card App</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <style>
-        body { font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 10px; }
-        h1, h2 { text-align: center; }
-        form { background: #f4f4f4; padding: 15px; border-radius: 5px; }
-        input, select { width: 100%; padding: 8px; margin: 6px 0; }
-        button { width: 100%; padding: 10px; background: #333; color: white; border: none; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
-        tr:nth-child(even) { background: #f9f9f9; }
-        .message { color: green; text-align: center; margin-top: 10px; }
-    </style>
+    <title>Barista Dashboard</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <script>
+        async function fetchCustomerNames() {
+            const id = document.getElementById('unique_id').value;
+            const response = await fetch('/lookup', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                body: 'unique_id=' + encodeURIComponent(id)
+            });
+            const data = await response.json();
+
+            const dropdown = document.getElementById('name_dropdown');
+            const nameField = document.getElementById('custom_name');
+
+            dropdown.innerHTML = '';
+            if (data.names.length > 0) {
+                dropdown.style.display = 'block';
+                nameField.style.display = 'none';
+                const defaultOption = document.createElement('option');
+                defaultOption.value = '';
+                defaultOption.textContent = '-- Select Name --';
+                dropdown.appendChild(defaultOption);
+                data.names.forEach(name => {
+                    const option = document.createElement('option');
+                    option.value = name;
+                    option.textContent = name;
+                    dropdown.appendChild(option);
+                });
+            } else {
+                dropdown.style.display = 'none';
+                nameField.style.display = 'block';
+            }
+        }
+
+        function toggleNameInput() {
+            const dropdown = document.getElementById('name_dropdown');
+            const nameField = document.getElementById('custom_name');
+            if (dropdown.value === '') {
+                nameField.style.display = 'block';
+            } else {
+                nameField.style.display = 'none';
+                nameField.value = '';
+            }
+        }
+    </script>
 </head>
 <body>
-    <h1>Café Loyalty Dashboard</h1>
+    <h1>☕ Barista Order Dashboard</h1>
 
-    <form method="post">
-        <label>Unique ID:</label>
-        <input type="text" name="unique_id" required>
+    <form method="POST" action="/">
+        <label>Last 4-digit Unique ID:</label><br>
+        <input type="text" name="unique_id" id="unique_id" required oninput="fetchCustomerNames()" maxlength="4"><br><br>
 
-        <label>Customer Name (optional):</label>
-        <input type="text" name="customer_name">
+        <label>Customer Name:</label><br>
+        <select id="name_dropdown" name="customer_name" style="display:none;" onchange="toggleNameInput()"></select>
+        <input type="text" name="custom_name" id="custom_name" placeholder="Enter customer name" required><br><br>
 
-        <label>Phone Number (optional):</label>
-        <input type="text" name="phone_number">
+        <label>Phone (optional):</label><br>
+        <input type="text" name="phone" placeholder="e.g. 0123456789"><br><br>
 
-        <label>Drink Type:</label>
-        <select name="drink">
+        <label>Drink Type:</label><br>
+        <select name="drink_type">
             <option value="">N/A</option>
-            {% for drink in drinks %}
-            <option value="{{ drink }}">{{ drink }}</option>
-            {% endfor %}
-        </select>
+            <option value="Latte">Latte</option>
+            <option value="Cappuccino">Cappuccino</option>
+            <option value="Mocha">Mocha</option>
+            <option value="Espresso">Espresso</option>
+        </select><br><br>
 
-        <label>Quantity of Drinks:</label>
-        <input type="number" name="quantity" min="0" value="0">
-
-        <label>Redeem Tokens:</label>
-        <input type="number" name="redeem" min="0" value="0">
+        <label>Quantity:</label><br>
+        <input type="number" name="quantity" value="0" min="0"><br><br>
 
         <button type="submit">Submit Order</button>
     </form>
 
     {% if message %}
-    <p class="message">{{ message }}</p>
+        <p style="color:green;"><strong>{{ message }}</strong></p>
     {% endif %}
 
-    {% if summary %}
-    <h2>Summary for {{ summary.unique_id }}</h2>
-    <table>
-        <tr><th>Total Orders</th><th>Tokens Earned</th><th>Redeemed</th><th>Balance</th></tr>
-        <tr>
-            <td>{{ summary.total_orders }}</td>
-            <td>{{ summary.tokens_earned }}</td>
-            <td>{{ summary.redeemed }}</td>
-            <td>{{ summary.balance }}</td>
-        </tr>
-    </table>
-
-    <h3>Recent Orders</h3>
-    <table>
-        <tr><th>Date</th><th>Drink</th><th>Qty</th><th>Tokens</th><th>Redeemed</th></tr>
-        {% for order in recent_orders %}
-        <tr>
-            <td>{{ order.date }}</td>
-            <td>{{ order.drink_type }}</td>
-            <td>{{ order.quantity }}</td>
-            <td>{{ order.tokens }}</td>
-            <td>{{ order.redeemed }}</td>
-        </tr>
-        {% endfor %}
-    </table>
+    {% if customers %}
+        <h2>Customer Summary</h2>
+        <table border="1">
+            <tr>
+                <th>Customer Name</th>
+                <th>Unique ID</th>
+                <th>Total Orders</th>
+                <th>Token Earned</th>
+                <th>Token Redeemed</th>
+            </tr>
+            {% for cust in customers %}
+            <tr>
+                <td>{{ cust[0] }}</td>
+                <td>{{ cust[1] }}</td>
+                <td>{{ cust[2] }}</td>
+                <td>{{ cust[3] }}</td>
+                <td>{{ cust[4] }}</td>
+            </tr>
+            {% endfor %}
+        </table>
     {% endif %}
 
-    <h2>All Customers Summary</h2>
-    <table>
-        <tr>
-            <th>Unique ID</th>
-            <th>Name</th>
-            <th>Phone</th>
-            <th>Total Orders</th>
-            <th>Tokens</th>
-            <th>Redeemed</th>
-            <th>Balance</th>
-        </tr>
-        {% for row in all_summary %}
-        <tr>
-            <td>{{ row.unique_id }}</td>
-            <td>{{ row.customer_name }}</td>
-            <td>{{ row.phone_number }}</td>
-            <td>{{ row.total_orders }}</td>
-            <td>{{ row.tokens_earned }}</td>
-            <td>{{ row.redeemed }}</td>
-            <td>{{ row.balance }}</td>
-        </tr>
-        {% endfor %}
-    </table>
-
-    <div style="text-align:center; margin-top:20px;">
-        <a href="/export"><button style="background:green;">Export to Excel</button></a>
-        <a href="/logout"><button>Logout</button></a>
-    </div>
+    <br><br>
+    <a href="/export"><button>📁 Export to Excel</button></a>
 </body>
 </html>

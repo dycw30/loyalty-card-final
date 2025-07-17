@@ -1,38 +1,45 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Customer Details - Loyalty Card</title>
+    <title>Customer Lookup</title>
+    <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
-    <h1>Customer {{ summary.customer_name or 'N/A' }} (ID: {{ summary.unique_id }})</h1>
-    {% if summary.phone_number %}
-        <p>Phone: {{ summary.phone_number }}</p>
-    {% endif %}
-    <p>Total Orders: {{ summary.total_orders }}</p>
-    <p>Tokens Earned: {{ summary.tokens_earned }}</p>
-    <p>Tokens Redeemed: {{ summary.redeemed }}</p>
-    <p><strong>Balance: {{ summary.balance }}</strong></p>
+    <h1>Customer Lookup</h1>
+    <form method="post">
+        <label>Enter Unique ID:</label>
+        <input type="text" name="unique_id" required>
+        <button type="submit">Lookup</button>
+    </form>
 
-    <h3>Recent Transactions</h3>
-    <table border="1" cellpadding="5">
-        <tr>
-            <th>Date</th>
-            <th>Drink</th>
-            <th>Quantity</th>
-            <th>Tokens</th>
-            <th>Redeemed</th>
-        </tr>
-        {% for t in transactions %}
-        <tr>
-            <td>{{ t.date }}</td>
-            <td>{{ t.drink }}</td>
-            <td>{{ t.quantity }}</td>
-            <td>{{ t.tokens }}</td>
-            <td>{{ t.redeemed }}</td>
-        </tr>
-        {% endfor %}
-    </table>
-    <br>
-    <a href="/admin">⬅ Back to Admin</a>
+    {% if customer %}
+        <h2>Summary for {{ customer[0] }} ({{ customer[1] }})</h2>
+        <p>Total Orders: {{ totals.total_orders }}</p>
+        <p>Total Tokens Earned: {{ totals.tokens }}</p>
+        <p>Total Redeemed: {{ totals.redeemed }}</p>
+        <p>Phone: {{ latest_phone }}</p>
+
+        <h3>Order History:</h3>
+        <table border="1" cellpadding="5" cellspacing="0">
+            <tr>
+                <th>Date</th>
+                <th>Quantity</th>
+                <th>Tokens</th>
+                <th>Redeemed</th>
+                <th>Drink</th>
+            </tr>
+            {% for order in orders %}
+            <tr>
+                <td>{{ order[0] }}</td>
+                <td>{{ order[1] }}</td>
+                <td>{{ order[2] }}</td>
+                <td>{{ order[3] }}</td>
+                <td>{{ order[4] }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+    {% elif searched %}
+        <p style="color:red;">No customer found with that Unique ID.</p>
+    {% endif %}
 </body>
 </html>
